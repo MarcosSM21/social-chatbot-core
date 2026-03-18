@@ -13,10 +13,12 @@ class Application:
         print(f"Environment: {self.settings.app_env}")
         print(f"Log level: {self.settings.log_level}")
         print(f"LLM Provider: {self.settings.llm_provider}")
+        print(f"Bot Name: {self.settings.bot_name}")
+        print(f"Bot Tone: {self.settings.bot_tone}")
 
-        response_engine = ResponseEngine()
+        response_engine = ResponseEngine(settings=self.settings)
         orchestrator = ChatOrchestrator(response_engine)
-        local_channel = LocalChannel(orchestrator)
+        local_channel = LocalChannel(orchestrator, settings=self.settings)
 
         local_channel.run()
 
