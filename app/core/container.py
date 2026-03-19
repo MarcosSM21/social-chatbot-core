@@ -6,9 +6,11 @@ from app.engine.response_engine import ResponseEngine
 from app.orchestrator.chat_orquestrator import ChatOrchestrator
 from app.services.conversation_service import ConversationService
 from app.storage.local_chat_repository import LocalChatRepository
+from app.providers.mock_provider import MockGenerationProvider
 
 def build_chat_orchestrator(settings: Settings) -> ChatOrchestrator:
-    response_engine = ResponseEngine(settings=settings)
+    generation_provider = MockGenerationProvider(settings)
+    response_engine = ResponseEngine(generation_provider)
     chat_repository = LocalChatRepository()
     conversation_service = ConversationService(
         response_engine,
