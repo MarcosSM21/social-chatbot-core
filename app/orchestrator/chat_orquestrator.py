@@ -1,22 +1,14 @@
-from app.engine.response_engine import ResponseEngine
 from app.models.chat import ChatMessage, ChatTurn
-from app.storage.local_chat_repository import LocalChatRepository
+from app.services.conversation_service import ConversationService
+
+
 
 class ChatOrchestrator:
-    def __init__(self, response_engine: ResponseEngine, chat_repository: LocalChatRepository) -> None:
-        
-        self.response_engine = response_engine
-        self.chat_repository = chat_repository
+    def __init__(self, conversation_service: ConversationService) -> None:
+        self.conversation_service = conversation_service
 
     def handle_message(self, message: ChatMessage) -> ChatTurn:
-        recent_history = self.chat_repository.get_recent_turns()
-        assistant_message = self.response_engine.generate_response(message, recent_history)
-
-        turn = ChatTurn(
-            user_message=message,
-            assistant_message=assistant_message
-        )
-
-        self.chat_repository.save_turn(turn)
-
+        turn = self.conversation_service.process_message(message)
         return turn
+    
+    
