@@ -14,6 +14,9 @@ class Settings:
     bot_tone: str
     bot_welcome_message: str
     bot_goodbye_message: str
+    generation_provider: str 
+    ollama_base_url: str
+    ollama_model: str
 
     @classmethod
     def from_env(cls)-> "Settings":
@@ -26,5 +29,8 @@ class Settings:
             bot_welcome_message=os.getenv("BOT_WELCOME_MESSAGE", 
                                           "¡Hola! Soy Social, escribe 'q' para salir"),
             bot_goodbye_message=os.getenv("BOT_GOODBYE_MESSAGE", "¡Adiós!"),
+            generation_provider=os.getenv("GENERATION_PROVIDER", "mock"),
+            ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+            ollama_model=os.getenv("OLLAMA_MODEL", "gemma3")
         )
     

@@ -31,7 +31,7 @@ class LocalChannel:
 
                 user_message = ChatMessage(role="user", content=user_input)
                 turn = self.orchestrator.handle_message(user_message, self.session_id)
-                print(turn.assistant_message.content)
+                print(f"LLM:{turn.assistant_message.content}")
         
         except KeyboardInterrupt:
             print()
@@ -87,7 +87,7 @@ class LocalChannel:
         for index, turn in enumerate(history, start=1):
             print(f"Turn {index}:")
             print(f"  You: {turn.user_message.content}")
-            print(f"  {turn.assistant_message.content}")
+            print(f"  LLM:{turn.assistant_message.content}")
             print("-" * 40)
 
         
