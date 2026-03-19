@@ -11,12 +11,13 @@ class ConversationService:
         self.response_engine = response_engine
         self.chat_repository = chat_repository
     
-    def process_message(self, message: ChatMessage) -> ChatTurn:
-        recent_history = self.chat_repository.get_recent_turns(limit=3)
+    def process_message(self, message: ChatMessage, session_id: str) -> ChatTurn:
+        recent_history = self.chat_repository.get_recent_turns(session_id, limit=3)
 
         assistant_message = self.response_engine.generate_response(message=message, history=recent_history)
 
         turn = ChatTurn(
+            session_id=session_id,
             user_message=message,
             assistant_message=assistant_message
         )

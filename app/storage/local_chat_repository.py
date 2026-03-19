@@ -18,10 +18,11 @@ class LocalChatRepository:
         raw_data = json.loads(self.file_path.read_text(encoding="utf-8"))
         return [ChatTurn.from_dict(item) for item in raw_data]
     
-    def get_recent_turns(self, limit:int = 3) -> list[ChatTurn]:
+    def get_recent_turns(self, session_id: str, limit: int = 3) -> list[ChatTurn]:
         turns = self.load_turns()
-        return turns[-limit:] # Devuelve los últimos '3' turnos de conversación
-    
+        session_turns = [turn for turn in turns if turn.session_id == session_id]
+        return session_turns[-limit:] # Devuelve los últimos '3' turnos de conversación
+
     def save_turn(self, turn:ChatTurn) -> None:
         turns = self.load_turns()
         turns.append(turn)
