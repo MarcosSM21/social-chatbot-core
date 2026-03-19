@@ -1,44 +1,27 @@
 # social-chatbot-core
 
-Core modular project for building a social-media chatbot progressively and professionally.
+Modular project to build, step by step, a chatbot system that can eventually connect to Instagram or similar platforms, read direct messages, generate coherent responses, and evolve toward personalized conversations with context and memory.
 
-## Project goal
+## Current status
 
-Build, step by step, a chatbot system capable of eventually connecting to Instagram or similar platforms, reading direct messages, generating coherent responses, and evolving toward personalized conversations with context and memory.
+Phase 1 completed: local minimal chatbot.
 
-## Current phase
+The project currently provides a fully local chatbot MVP with:
 
-Phase 0 — Foundations
+- modular architecture
+- local terminal interaction
+- configurable bot behavio
+- structured chat domain models
+- local JSON persistence
+- session-based conversation isolation
+- recent-history-aware responses
+- basic local commands for usability
 
-## Initial scope
+## Implemented architecture
 
-This project starts with a minimal local conversational core:
-- local message input
-- orchestration layer
-- response engine
-- progressive modular architecture
-
-## Initial stack
-
-- Python
-- venv
-- requirements.txt
-- Git + GitHub
-- terminal interface
-- .env configuration
-- mock response provider
-
-## Not included yet
-
-- FastAPI
-- SQLite
-- Instagram integration
-- real LLM provider
-- Docker
-- deployment
-
-## Minimal architecture
-
-- LocalChannel
-- ChatOrchestrator
-- ResponseEngine
+```text
+LocalChannel
+   -> ChatOrchestrator
+      -> ConversationService
+         -> LocalChatRepository
+         -> ResponseEngine
