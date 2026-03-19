@@ -18,6 +18,10 @@ class LocalChatRepository:
         raw_data = json.loads(self.file_path.read_text(encoding="utf-8"))
         return [ChatTurn.from_dict(item) for item in raw_data]
     
+    def get_recent_turns(self, limit:int = 3) -> list[ChatTurn]:
+        turns = self.load_turns()
+        return turns[-limit:] # Devuelve los últimos '3' turnos de conversación
+    
     def save_turn(self, turn:ChatTurn) -> None:
         turns = self.load_turns()
         turns.append(turn)
@@ -28,3 +32,6 @@ class LocalChatRepository:
             json.dumps(serialized_turns, indent=2, ensure_ascii=False),
             encoding="utf-8"    
         )
+
+
+    

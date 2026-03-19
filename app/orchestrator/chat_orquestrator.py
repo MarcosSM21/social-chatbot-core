@@ -9,7 +9,8 @@ class ChatOrchestrator:
         self.chat_repository = chat_repository
 
     def handle_message(self, message: ChatMessage) -> ChatTurn:
-        assistant_message = self.response_engine.generate_response(message)
+        recent_history = self.chat_repository.get_recent_turns()
+        assistant_message = self.response_engine.generate_response(message, recent_history)
 
         turn = ChatTurn(
             user_message=message,
