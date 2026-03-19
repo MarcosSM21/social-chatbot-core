@@ -4,6 +4,7 @@ from app.channels.local_channel import LocalChannel
 from app.orchestrator.chat_orquestrator import ChatOrchestrator
 from app.engine.response_engine import ResponseEngine
 from app.storage.local_chat_repository import LocalChatRepository
+from app.services.conversation_service import ConversationService
 
 
 class Application:
@@ -20,7 +21,8 @@ class Application:
 
         response_engine = ResponseEngine(settings=self.settings)
         chat_repository = LocalChatRepository()
-        orchestrator = ChatOrchestrator(response_engine, chat_repository)
+        conversation_service = ConversationService(response_engine, chat_repository)
+        orchestrator = ChatOrchestrator(conversation_service)
         local_channel = LocalChannel(orchestrator, settings=self.settings)
 
         local_channel.run()
