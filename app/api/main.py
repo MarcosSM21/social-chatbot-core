@@ -6,7 +6,13 @@ from app.api.schemas import (
     HealthResponse,
     InfoResponse)
 
+
 from app.core.settings import Settings
+from app.engine.response_engine import ResponseEngine
+from app.models.chat import ChatMessage
+from app.orchestrator.chat_orquestrator import ChatOrchestrator
+from app.services.conversation_service import ConversationService
+from app.storage.local_chat_repository import LocalChatRepository
 
 
 
@@ -17,6 +23,15 @@ app = FastAPI(
 )
 
 settings = Settings.from_env()
+
+def build_orchestator() -> ChatOrchestrator:
+    response_engine = ResponseEngine(settings=settings)
+    chat_repository = LocalChatRepository()
+    conversation_service = ConversationService(
+        response_engine,
+        chat_repository 
+    )
+    return ChatOrchestrator(conversation_service)
 
 @app.get("/")
 def root() -> dict:
@@ -43,8 +58,18 @@ def info() -> InfoResponse:
 
 @app.post("/messages", response_model=MessageResponse)
 def create_message(request: MessageRequest) -> MessageResponse:
+    
+    user_message = ChatMessage(role="user", content=request.message)
+    
+    orchestrator = build_orchestator()
+
+    turn = orchestrator.handle_message(
+        session_id=request.session_id,
+        message=user_message
+    )
+
     return MessageResponse(
-        user_message=request.message,
-        assistant_message=(f"Mock Echo: {request.message}"),      
-        session_id=request.session_id
+        user_message=turn.user_message.content,
+        assistant_message=turn.assistant_message.content,
+        session_id=turn.session_id
     )
