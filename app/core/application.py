@@ -7,6 +7,7 @@ from app.orchestrator.chat_orquestrator import ChatOrchestrator
 from app.engine.response_engine import ResponseEngine
 from app.storage.local_chat_repository import LocalChatRepository
 from app.services.conversation_service import ConversationService
+from app.core.container import build_local_channel
 
 
 class Application:
@@ -21,13 +22,7 @@ class Application:
         print(f"Bot Name: {self.settings.bot_name}")
         print(f"Bot Tone: {self.settings.bot_tone}")
 
-        session_id = str(uuid.uuid4())
-
-        response_engine = ResponseEngine(settings=self.settings)
-        chat_repository = LocalChatRepository()
-        conversation_service = ConversationService(response_engine, chat_repository)
-        orchestrator = ChatOrchestrator(conversation_service)
-        local_channel = LocalChannel(orchestrator, settings=self.settings, session_id=session_id)
+        local_channel = build_local_channel(self.settings)
 
         local_channel.run()
 
