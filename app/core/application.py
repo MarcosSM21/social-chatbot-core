@@ -1,3 +1,5 @@
+import uuid
+
 from app.core.settings import Settings
 
 from app.channels.local_channel import LocalChannel
@@ -19,11 +21,13 @@ class Application:
         print(f"Bot Name: {self.settings.bot_name}")
         print(f"Bot Tone: {self.settings.bot_tone}")
 
+        session_id = "281ce595-188c-40fc-8108-b5288e78c335"  # str(uuid.uuid4())
+
         response_engine = ResponseEngine(settings=self.settings)
         chat_repository = LocalChatRepository()
         conversation_service = ConversationService(response_engine, chat_repository)
         orchestrator = ChatOrchestrator(conversation_service)
-        local_channel = LocalChannel(orchestrator, settings=self.settings)
+        local_channel = LocalChannel(orchestrator, settings=self.settings, session_id=session_id)
 
         local_channel.run()
 
