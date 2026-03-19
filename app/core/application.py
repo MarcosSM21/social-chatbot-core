@@ -1,8 +1,9 @@
+from app.core.settings import Settings
+
 from app.channels.local_channel import LocalChannel
 from app.orchestrator.chat_orquestrator import ChatOrchestrator
 from app.engine.response_engine import ResponseEngine
 
-from app.core.settings import Settings
 
 class Application:
     def __init__(self, settings: Settings):
