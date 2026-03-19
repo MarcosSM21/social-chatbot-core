@@ -1,17 +1,21 @@
 from app.core.settings import Settings
+from app.models.chat import ChatMessage
 
 
 class ResponseEngine:
     def __init__(self, settings: Settings = None) -> None:
         self.setting =  settings
 
-    def generate_response(self, message:str) -> str:
-        cleaned_message = message.strip()
+    def generate_response(self, message:ChatMessage) -> ChatMessage:
+        cleaned_message = message.content.strip()
 
         if not cleaned_message:
-            return self._empty_message_response()
-        
-        return self._build_response(cleaned_message)
+             response_text = self._empty_message_response()
+        else:
+             response_text= self._build_response(cleaned_message)
+        return ChatMessage(role="assistant", content=response_text)      
+    
+
     
 
     def _empty_message_response(self) -> str:
