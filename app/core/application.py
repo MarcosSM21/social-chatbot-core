@@ -3,6 +3,7 @@ from app.core.settings import Settings
 from app.channels.local_channel import LocalChannel
 from app.orchestrator.chat_orquestrator import ChatOrchestrator
 from app.engine.response_engine import ResponseEngine
+from app.storage.local_chat_repository import LocalChatRepository
 
 
 class Application:
@@ -18,7 +19,8 @@ class Application:
         print(f"Bot Tone: {self.settings.bot_tone}")
 
         response_engine = ResponseEngine(settings=self.settings)
-        orchestrator = ChatOrchestrator(response_engine)
+        chat_repository = LocalChatRepository()
+        orchestrator = ChatOrchestrator(response_engine, chat_repository)
         local_channel = LocalChannel(orchestrator, settings=self.settings)
 
         local_channel.run()
