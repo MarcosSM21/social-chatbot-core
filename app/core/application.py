@@ -21,7 +21,7 @@ class Application:
         print(f"Bot Name: {self.settings.bot_name}")
         print(f"Bot Tone: {self.settings.bot_tone}")
 
-        session_id = "281ce595-188c-40fc-8108-b5288e78c335"  # str(uuid.uuid4())
+        session_id = str(uuid.uuid4())
 
         response_engine = ResponseEngine(settings=self.settings)
         chat_repository = LocalChatRepository()

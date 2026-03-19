@@ -25,3 +25,9 @@ class ConversationService:
         self.chat_repository.save_turn(turn)
 
         return turn 
+    
+    def get_session_history(self, session_id: str, limit: int = 3) -> list[ChatTurn]:
+        return self.chat_repository.get_recent_turns(
+            session_id=session_id,
+            limit=limit
+        )
