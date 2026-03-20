@@ -3,6 +3,8 @@ from app.core.settings import Settings
 from app.models.chat import ChatMessage
 
 class LocalChannel:
+    """Terminal-based implementation of a channel adapter"""
+
     def __init__(self, orchestrator: ChatOrchestrator, settings: Settings, session_id: str) -> None:
         self.orchestrator = orchestrator
         self.settings = settings
