@@ -9,6 +9,7 @@ from app.storage.local_chat_repository import LocalChatRepository
 from app.providers.mock_provider import MockGenerationProvider
 from app.providers.local_llm_provider import LocalLLMGenerationProvider
 from app.providers.fallback_provider import FallbackGenerationProvider
+from app.channels.http_channel_adapter import HttpChannelAdapter
 
 
 def build_generation_provider(settings: Settings):
@@ -40,5 +41,9 @@ def build_local_channel(settings: Settings) -> LocalChannel:
     orchestrator = build_chat_orchestrator(settings)
     session_id = str(uuid.uuid4())
     return LocalChannel(orchestrator, settings=settings, session_id=session_id)
+
+def build_http_channel_adapter(settings: Settings) -> HttpChannelAdapter:
+    orchestrator = build_chat_orchestrator(settings)
+    return HttpChannelAdapter(orchestrator)
 
 

@@ -6,7 +6,7 @@ class ExternalMessageEvent:
     conversation_id: str
     user_id: str
     message_text: str
-    message_id: str
+    
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -20,5 +20,4 @@ class ExternalMessageEvent:
             message_text=data.get("message_text", ""),
             message_id=data.get("message_id", "")
         )
-    
     
