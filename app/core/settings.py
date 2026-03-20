@@ -17,6 +17,9 @@ class Settings:
     generation_provider: str 
     ollama_base_url: str
     ollama_model: str
+    max_history_turns: int
+    ollama_timeout_seconds: int
+    enable_provider_fallback : bool
 
     @classmethod
     def from_env(cls)-> "Settings":
@@ -31,6 +34,9 @@ class Settings:
             bot_goodbye_message=os.getenv("BOT_GOODBYE_MESSAGE", "¡Adiós!"),
             generation_provider=os.getenv("GENERATION_PROVIDER", "mock"),
             ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-            ollama_model=os.getenv("OLLAMA_MODEL", "gemma3")
+            ollama_model=os.getenv("OLLAMA_MODEL", "gemma3"),
+            max_history_turns=int(os.getenv("MAX_HISTORY_TURNS", "3")),
+            ollama_timeout_seconds=int(os.getenv("OLLAMA_TIMEOUT_SECONDS", "60")),
+            enable_provider_fallback=os.getenv("ENABLE_PROVIDER_FALLBACK", "true").lower() == "true",
         )
     

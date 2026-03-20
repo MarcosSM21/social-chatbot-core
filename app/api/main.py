@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 from app.api.schemas import (
     MessageRequest,
@@ -10,6 +10,7 @@ from app.api.schemas import (
 from app.core.settings import Settings
 from app.models.chat import ChatMessage
 from app.core.container import build_chat_orchestrator
+from app.providers.exceptions import GenerationProviderError
 
 
 
@@ -54,10 +55,14 @@ def create_message(request: MessageRequest) -> MessageResponse:
     
     orchestrator = build_chat_orchestrator(settings)
 
-    turn = orchestrator.handle_message(
-        session_id=request.session_id,
-        message=user_message
-    )
+
+    try:
+        turn = orchestrator.handle_message(
+            session_id=request.session_id,
+            message=user_message
+        )
+    except GenerationProviderError as exc:
+        raise HTTPException(status_code=503, detail=f"Generation provider error: {exc}") from exc
 
     return MessageResponse(
         user_message=turn.user_message.content,
