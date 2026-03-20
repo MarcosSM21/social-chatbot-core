@@ -4,12 +4,13 @@ from app.api.schemas import (
     MessageRequest,
     MessageResponse,
     HealthResponse,
-    InfoResponse)
+    InfoResponse
+)
 
 
 from app.core.settings import Settings
-from app.models.chat import ChatMessage
-from app.core.container import build_chat_orchestrator
+from app.models.external import ExternalMessageEvent
+from app.core.container import build_http_channel_adapter
 from app.providers.exceptions import GenerationProviderError
 
 
@@ -51,16 +52,19 @@ def info() -> InfoResponse:
 @app.post("/messages", response_model=MessageResponse)
 def create_message(request: MessageRequest) -> MessageResponse:
     
-    user_message = ChatMessage(role="user", content=request.message)
+    event = ExternalMessageEvent(
+        platform="api",
+        conversation_id=request.session_id,
+        user_id="api-user",
+        message_text=request.message
+    )
     
-    orchestrator = build_chat_orchestrator(settings)
+    http_channel_adapter = build_http_channel_adapter(settings)
 
+    
 
     try:
-        turn = orchestrator.handle_message(
-            session_id=request.session_id,
-            message=user_message
-        )
+        turn = http_channel_adapter.process_event(event)
     except GenerationProviderError as exc:
         raise HTTPException(status_code=503, detail=f"Generation provider error: {exc}") from exc
 
