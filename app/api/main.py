@@ -4,7 +4,8 @@ from app.api.schemas import (
     MessageRequest,
     MessageResponse,
     HealthResponse,
-    InfoResponse
+    InfoResponse,
+    WebhookMessageRequest
 )
 
 
@@ -56,7 +57,10 @@ def create_message(request: MessageRequest) -> MessageResponse:
         platform="api",
         conversation_id=request.session_id,
         user_id="api-user",
-        message_text=request.message
+        message_text=request.message,
+        channel_metadata={
+            "source": "internal_api"
+        }
     )
     
     http_channel_adapter = build_http_channel_adapter(settings)
@@ -65,6 +69,33 @@ def create_message(request: MessageRequest) -> MessageResponse:
 
     try:
         turn = http_channel_adapter.process_event(event)
+    except GenerationProviderError as exc:
+        raise HTTPException(status_code=503, detail=f"Generation provider error: {exc}") from exc
+
+    return MessageResponse(
+        user_message=turn.user_message.content,
+        assistant_message=turn.assistant_message.content,
+        session_id=turn.session_id
+    )
+
+@app.post("/webhook/messages", response_model=MessageResponse)
+def create_webhook_message(request: WebhookMessageRequest) -> MessageResponse:
+    
+    event = ExternalMessageEvent(
+        platform=request.platform,
+        conversation_id=request.conversation_id,
+        user_id=request.user_id,
+        message_text=request.message_text,
+        message_id=request.message_id,
+        channel_metadata=request.channel_metadata
+    )
+    
+    http_channel= build_http_channel_adapter(settings)
+
+    
+
+    try:
+        turn = http_channel.process_event(event)
     except GenerationProviderError as exc:
         raise HTTPException(status_code=503, detail=f"Generation provider error: {exc}") from exc
 
