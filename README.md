@@ -104,3 +104,54 @@ API mode (HTTP)
                   -> FallbackGenerationProvider
 
 Everything centralized in app/core/container.py
+
+
+## status (IV)
+
+Phase 4 completed: external channel preparation and webhook-ready integration design.
+
+The project currently provides:
+
+- a local chatbot mode via terminal
+- an internal HTTP API via FastAPI
+- a shared modular chat core
+- configurable bot behavior
+- session-based conversation isolation
+- local JSON persistence
+- pluggable generation providers
+- local LLM support through Ollama
+- provider fallback and basic robustness
+- explicit external message event modeling
+- webhook-ready HTTP entrypoint
+- external-to-internal conversation mapping
+
+## Implemented architecture
+
+Local mode (terminal)
+   -> LocalChannel
+      -> ChatOrchestrator
+         -> ConversationService
+            -> LocalChatRepository
+            -> ResponseEngine
+               -> GenerationProvider
+
+API mode (simple internal)
+   -> /messages
+   -> ExternalMessageEvent
+   -> HttpChannelAdapter
+      -> ChatOrchestrator
+         -> ConversationService
+            -> LocalChatRepository
+            -> ResponseEngine
+               -> GenerationProvider
+
+Webhook-ready mode
+   -> /webhook/messages
+   -> ExternalMessageEvent
+   -> HttpChannelAdapter
+      -> ConversationMappingRepository
+      -> ChatOrchestrator
+         -> ConversationService
+            -> LocalChatRepository
+            -> ResponseEngine
+               -> GenerationProvider
