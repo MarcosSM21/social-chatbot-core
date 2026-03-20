@@ -44,7 +44,7 @@ The project currently provides:
 
 ## Implemented architecture
 
-```text
+
 Local mode (terminal)
    -> LocalChannel
       -> ChatOrchestrator
@@ -58,3 +58,49 @@ API mode (HTTP)
          -> ConversationService
             -> LocalChatRepository
             -> ResponseEngine
+
+
+## Status (III)
+
+Phase 3 completed: real conversational engine with pluggable generation provider.
+
+The project currently provides:
+
+- a local chatbot mode via terminal
+- an internal HTTP API via FastAPI
+- a shared modular chat core
+- configurable bot behavior
+- session-based conversation isolation
+- recent-history-aware responses
+- local JSON persistence
+- API request/response validation
+- pluggable generation providers
+- local LLM support through Ollama
+- provider fallback and basic robustness
+
+## Implemented architecture
+
+
+Local mode (terminal)
+   -> LocalChannel
+      -> ChatOrchestrator
+         -> ConversationService
+            -> LocalChatRepository
+            -> ResponseEngine
+               -> GenerationProvider
+                  -> MockGenerationProvider
+                  -> LocalLLMGenerationProvider
+                  -> FallbackGenerationProvider
+
+API mode (HTTP)
+   -> FastAPI endpoint
+      -> ChatOrchestrator
+         -> ConversationService
+            -> LocalChatRepository
+            -> ResponseEngine
+               -> GenerationProvider
+                  -> MockGenerationProvider
+                  -> LocalLLMGenerationProvider
+                  -> FallbackGenerationProvider
+
+Everything centralized in app/core/container.py
