@@ -10,6 +10,7 @@ from app.providers.mock_provider import MockGenerationProvider
 from app.providers.local_llm_provider import LocalLLMGenerationProvider
 from app.providers.fallback_provider import FallbackGenerationProvider
 from app.channels.http_channel_adapter import HttpChannelAdapter
+from app.storage.conversation_mapping_repository import ConversationMappingRepository
 
 
 def build_generation_provider(settings: Settings):
@@ -44,6 +45,7 @@ def build_local_channel(settings: Settings) -> LocalChannel:
 
 def build_http_channel_adapter(settings: Settings) -> HttpChannelAdapter:
     orchestrator = build_chat_orchestrator(settings)
-    return HttpChannelAdapter(orchestrator)
+    mapping_repository = ConversationMappingRepository()
+    return HttpChannelAdapter(orchestrator, mapping_repository)
 
 
