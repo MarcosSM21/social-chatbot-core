@@ -40,3 +40,19 @@ class WebhookEventResponse(BaseModel):
     status: str = Field(..., description="Estado del procesamiento del evento")
     detail: str | None = Field(default=None, description="Detalles adicionales sobre el procesamiento del evento")
 
+
+class InstagramWebhookMessageEventRequest(BaseModel):
+    sender_id: str = Field(..., min_length=1, description="External sender identifier")
+    recipient_id: str = Field(..., min_length=1, description="External recipient identifier")
+    timestamp: int | None = Field(default=None, description="Message timestamp")
+    message_id: str | None = Field(default=None, description="External message identifier")
+    text: str | None = Field(default=None, description="Message text")
+
+
+class InstagramWebhookPayloadRequest(BaseModel):
+    object: str = Field(..., min_length=1, description="Provider object name")
+    entry_id: str = Field(..., min_length=1, description="Provider entry identifier")
+    messaging: list[InstagramWebhookMessageEventRequest] = Field(
+        default_factory=list,
+        description="List of provider messaging events",
+    )
