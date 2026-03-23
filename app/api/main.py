@@ -46,6 +46,11 @@ def root() -> dict:
         "docs_url": "/docs",
         "health_url": "/health",
         "info_url": "/info",
+        "internal_messages_url": "/internal/messages",
+        "generic_webhook_verify_url": "/webhooks/verify",
+        "generic_webhook_messages_url": "/webhooks/messages",
+        "instagram_webhook_verify_url": "/providers/instagram/webhook/verify",
+        "instagram_webhook_messages_url": "/providers/instagram/webhook/messages",
     }
 
 @app.get("/health", response_model=HealthResponse)
@@ -62,8 +67,8 @@ def info() -> InfoResponse:
     )
 
 
-@app.post("/messages", response_model=MessageResponse)
-def create_message(request: MessageRequest) -> MessageResponse:
+@app.post("/internal/messages", response_model=MessageResponse)
+def create_internal_message(request: MessageRequest) -> MessageResponse:
     
     event = ExternalMessageEvent(
         platform="api",
@@ -80,18 +85,18 @@ def create_message(request: MessageRequest) -> MessageResponse:
     
 
     try:
-        turn = http_channel_adapter.process_event(event)
+        channel_result = http_channel_adapter.process_event(event)
     except GenerationProviderError as exc:
         raise HTTPException(status_code=503, detail=f"Generation provider error: {exc}") from exc
 
     return MessageResponse(
-        user_message=turn.user_message.content,
-        assistant_message=turn.assistant_message.content,
-        session_id=turn.session_id
+        user_message=channel_result.turn.user_message.content,
+        assistant_message=channel_result.turn.assistant_message.content,
+        session_id=channel_result.turn.session_id
     )
 
 
-@app.get("/webhook/verify", response_model=WebhookVerifyResponse)
+@app.get("/webhooks/verify", response_model=WebhookVerifyResponse)
 def verify_webhook(
     mode: str = Query(..., description="Modo de verificación"),
     token: str = Query(..., description="Token de verificación"),
@@ -107,7 +112,7 @@ def verify_webhook(
 
 
 
-@app.post("/webhook/messages")
+@app.post("/webhooks/messages")
 def receive_webhook_message(request: WebhookMessageRequest) -> MessageResponse | WebhookEventResponse:
     
     inbound_service = build_platform_inbound_service(settings)
@@ -153,7 +158,7 @@ def receive_webhook_message(request: WebhookMessageRequest) -> MessageResponse |
     )
 
 
-@app.post("/webhook/instagram/messages")
+@app.post("/providers/instagram/webhook/messages")
 def receive_instagram_webhook_message(request: InstagramWebhookPayloadRequest) -> MessageResponse | WebhookEventResponse:
 
     instagram_parser = InstagramPayloadParser()
@@ -175,20 +180,28 @@ def receive_instagram_webhook_message(request: InstagramWebhookPayloadRequest) -
     )
 
     try:
-        platform_payload = instagram_parser.parse(provider_payload)
-        inbound_result = inbound_service.process_payload(platform_payload)
+        provider_parser_result = instagram_parser.parse(provider_payload)
 
+        if provider_parser_result.status == "ignored":
+            return WebhookEventResponse(
+                status="ignored",
+                detail = provider_parser_result.detail
+            )
+        
+        if provider_parser_result.payload is None:
+            return WebhookEventResponse(
+                status="ignored",
+                detail=provider_parser_result.detail
+            )
+        
+        inbound_result = inbound_service.process_payload(provider_parser_result.payload)
+        
         if inbound_result.status == "ignored":
             return WebhookEventResponse(
                 status="ignored",
                 detail = inbound_result.detail
             )
-        
-        if inbound_result.channel_result is None:
-            return WebhookEventResponse(
-                status="ignored",
-                detail=inbound_result.detail
-            )
+
 
         if inbound_result.channel_result is None:
             raise HTTPException(
@@ -208,4 +221,12 @@ def receive_instagram_webhook_message(request: InstagramWebhookPayloadRequest) -
         user_message=turn.user_message.content,
         assistant_message=turn.assistant_message.content
     )
+
+@app.get("/providers/instagram/webhook/verify", response_model=WebhookVerifyResponse)
+def verify_instagram_webhook(
+    mode: str = Query(..., description="Verification mode"),
+    token: str = Query(..., description="Verification token"),
+    challenge: str = Query(..., description="Challenge string"),
+) -> WebhookVerifyResponse:
+    return verify_webhook(mode=mode, token=token, challenge=challenge)
 
