@@ -11,6 +11,8 @@ from app.providers.local_llm_provider import LocalLLMGenerationProvider
 from app.providers.fallback_provider import FallbackGenerationProvider
 from app.channels.http_channel_adapter import HttpChannelAdapter
 from app.storage.conversation_mapping_repository import ConversationMappingRepository
+from app.channels.platform_payload_parser import PlatformPayloadParser
+from app.services.platform_inbound_service import PlatformInboundService
 
 
 def build_generation_provider(settings: Settings):
@@ -47,5 +49,14 @@ def build_http_channel_adapter(settings: Settings) -> HttpChannelAdapter:
     orchestrator = build_chat_orchestrator(settings)
     mapping_repository = ConversationMappingRepository()
     return HttpChannelAdapter(orchestrator, mapping_repository)
+
+
+def build_platform_inbound_service(settings: Settings) -> PlatformInboundService:
+    http_channel_adapter = build_http_channel_adapter(settings)
+    payload_parser = PlatformPayloadParser()
+    return PlatformInboundService(
+        payload_parser = payload_parser,
+        http_channel_adapter= http_channel_adapter
+    )
 
 
