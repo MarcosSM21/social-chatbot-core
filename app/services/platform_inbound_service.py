@@ -18,7 +18,7 @@ class PlatformInboundService:
             return PlatformInboundResult(
                 status = "ignored",
                 detail = parse_result.detail,
-                turn = None
+                channel_result = None
             )
         
         if parse_result.event is None:
@@ -26,10 +26,10 @@ class PlatformInboundService:
                 "Parser return no event for a processable payload"
             )
         
-        turn = self.http_channel_adapter.process_event(parse_result.event)
+        channel_result = self.http_channel_adapter.process_event(parse_result.event)
 
         return PlatformInboundResult(
             status = "processed",
             detail = "Webhook event processed successfully.",
-            turn = turn
+            channel_result = channel_result
         )
