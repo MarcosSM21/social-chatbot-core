@@ -13,7 +13,9 @@ from app.api.schemas import (
 from app.core.settings import Settings
 from app.models.external import ExternalMessageEvent
 from app.core.container import build_http_channel_adapter
+from app.models.platform_payload import PlatformWebhookPayload
 from app.providers.exceptions import GenerationProviderError
+from app.channels.platform_payload_parser import PlatformPayloadParser
 
 
 
@@ -97,30 +99,37 @@ def verify_webhook(
 
 
 @app.post("/webhook/messages", response_model=MessageResponse)
-def create_webhook_message(request: WebhookMessageRequest) -> MessageResponse:
+def receive_webhook_message(request: WebhookMessageRequest) -> MessageResponse:
     
-    event = ExternalMessageEvent(
+    payload_parser = PlatformPayloadParser()
+    
+    http_channel= build_http_channel_adapter(settings)
+
+    payload = PlatformWebhookPayload(
         platform=request.platform,
+        event_type="message_received",
         conversation_id=request.conversation_id,
         user_id=request.user_id,
         message_text=request.message_text,
         message_id=request.message_id,
-        channel_metadata=request.channel_metadata
+        payload_id=None,
+        raw_payload=request.channel_metadata,
     )
-    
-    http_channel= build_http_channel_adapter(settings)
 
     
 
     try:
+        event = payload_parser.parse(payload)
         turn = http_channel.process_event(event)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid payload: {exc}") from exc
     except GenerationProviderError as exc:
         raise HTTPException(status_code=503, detail=f"Generation provider error: {exc}") from exc
 
     return MessageResponse(
+        session_id=turn.session_id,
         user_message=turn.user_message.content,
-        assistant_message=turn.assistant_message.content,
-        session_id=turn.session_id
+        assistant_message=turn.assistant_message.content
     )
 
 
