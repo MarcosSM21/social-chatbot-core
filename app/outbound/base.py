@@ -8,3 +8,4 @@ class OutboundSender(Protocol):
     def send(self, message: OutboundChannelMessage) -> OutboundSendResult:
         ...
     
+    
