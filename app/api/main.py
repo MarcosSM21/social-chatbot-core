@@ -24,7 +24,8 @@ from app.core.container import build_http_channel_adapter, build_platform_inboun
 from app.models.platform_payload import PlatformWebhookPayload
 from app.providers.exceptions import GenerationProviderError
 from app.channels.platform_payload_parser import PlatformPayloadParser
-
+from app.storage.external_trace_repository import ExternalTraceRepository
+from app.models.external_trace import ExternalTraceRecord
 
 
 
@@ -181,8 +182,25 @@ def receive_instagram_webhook_message(request: InstagramWebhookPayloadRequest) -
 
     try:
         provider_parser_result = instagram_parser.parse(provider_payload)
-
+        
+    
         if provider_parser_result.status == "ignored":
+            trace_repository = ExternalTraceRepository()
+            trace_repository.save_records(
+                ExternalTraceRecord(
+                    platform="instagram",
+                    external_conversation_id=provider_payload.messaging[0].sender_id if provider_payload.messaging else "unknown",
+                    external_user_id=provider_payload.messaging[0].sender_id if provider_payload.messaging else "unknown",
+                    internal_session_id=None,
+                    incoming_message_text=provider_payload.messaging[0].text if provider_payload.messaging else None,
+                    outgoing_message_text=None,
+                    inbound_status="ignored",
+                    outbound_status=None,
+                    detail= provider_parser_result.detail,
+                    provider_message_id=provider_payload.messaging[0].message_id if provider_payload.messaging else None,
+                    outbound_message_id=None,
+                )
+    )
             return WebhookEventResponse(
                 status="ignored",
                 detail = provider_parser_result.detail
@@ -194,7 +212,8 @@ def receive_instagram_webhook_message(request: InstagramWebhookPayloadRequest) -
                 detail=provider_parser_result.detail
             )
         
-        inbound_result = inbound_service.process_payload(provider_parser_result.payload)
+        
+        inbound_result = inbound_service.process_payload(provider_parser_result.payload) 
         
         if inbound_result.status == "ignored":
             return WebhookEventResponse(

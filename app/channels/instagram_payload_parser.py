@@ -49,5 +49,14 @@ class InstagramPayloadParser:
         return ProviderPayloadParseResult(
             status = "ignored",
             detail="No supported text-based messaging event found in provider payload",
-            payload = None
+            payload = PlatformWebhookPayload(
+                platform="instagram",
+                event_type="message_ignored",
+                conversation_id=None,
+                user_id=None,
+                message_text=None,
+                message_id=None,
+                payload_id=None,
+                raw_payload=None,
+                )
         )
