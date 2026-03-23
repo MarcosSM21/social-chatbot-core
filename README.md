@@ -155,3 +155,48 @@ Webhook-ready mode
             -> LocalChatRepository
             -> ResponseEngine
                -> GenerationProvider
+
+
+## status(V)
+
+Phase 5 completed: platform-ready webhook flow and outbound channel preparation.
+
+The project currently provides:
+
+- a local chatbot mode via terminal
+- an internal HTTP API via FastAPI
+- a shared modular chat core
+- configurable bot behavior
+- local JSON persistence
+- pluggable generation providers
+- local LLM support through Ollama
+- provider fallback and robustness
+- explicit external message event modeling
+- webhook verification flow
+- platform payload parsing and filtering
+- external-to-internal conversation mapping
+- outbound channel message preparation
+
+## Implemented architecture
+
+Webhook verification
+   -> GET /webhook/verify
+
+Platform incoming flow
+   -> POST /webhook/messages
+   -> PlatformWebhookPayload
+   -> PlatformInboundService
+      -> PlatformPayloadParser
+      -> HttpChannelAdapter
+         -> ConversationMappingRepository
+         -> ChatOrchestrator
+            -> ConversationService
+               -> LocalChatRepository
+               -> ResponseEngine
+                  -> GenerationProvider
+
+Outbound preparation
+   -> HttpChannelResult
+      -> ChatTurn
+      -> OutboundChannelMessage
+
