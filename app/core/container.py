@@ -14,6 +14,9 @@ from app.storage.conversation_mapping_repository import ConversationMappingRepos
 from app.channels.platform_payload_parser import PlatformPayloadParser
 from app.services.platform_inbound_service import PlatformInboundService
 from app.outbound.mock_sender import MockOutboundSender
+from app.storage.external_trace_repository import ExternalTraceRepository
+
+
 
 def build_generation_provider(settings: Settings):
     mock_provider = MockGenerationProvider(settings)
@@ -55,10 +58,12 @@ def build_platform_inbound_service(settings: Settings) -> PlatformInboundService
     http_channel_adapter = build_http_channel_adapter(settings)
     payload_parser = PlatformPayloadParser()
     outbound_sender = MockOutboundSender()
+    trace_repository = ExternalTraceRepository()
     return PlatformInboundService(
         payload_parser = payload_parser,
         http_channel_adapter= http_channel_adapter,
-        outbound_sender=outbound_sender
+        outbound_sender=outbound_sender,
+        trace_repository=trace_repository
     )
 
 
