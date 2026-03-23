@@ -20,6 +20,7 @@ class Settings:
     max_history_turns: int
     ollama_timeout_seconds: int
     enable_provider_fallback : bool
+    webhook_verify_token: str 
 
     @classmethod
     def from_env(cls)-> "Settings":
@@ -38,5 +39,6 @@ class Settings:
             max_history_turns=int(os.getenv("MAX_HISTORY_TURNS", "3")),
             ollama_timeout_seconds=int(os.getenv("OLLAMA_TIMEOUT_SECONDS", "60")),
             enable_provider_fallback=os.getenv("ENABLE_PROVIDER_FALLBACK", "true").lower() == "true",
+            webhook_verify_token=os.getenv("WEBHOOK_VERIFY_TOKEN", "dev-verify-token")
         )
     

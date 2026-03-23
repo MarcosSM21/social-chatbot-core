@@ -1,11 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 
 from app.api.schemas import (
     MessageRequest,
     MessageResponse,
     HealthResponse,
     InfoResponse,
-    WebhookMessageRequest
+    WebhookMessageRequest,
+    WebhookVerifyResponse
 )
 
 
@@ -78,6 +79,23 @@ def create_message(request: MessageRequest) -> MessageResponse:
         session_id=turn.session_id
     )
 
+
+@app.get("/webhook/verify", response_model=WebhookVerifyResponse)
+def verify_webhook(
+    mode: str = Query(..., description="Modo de verificación"),
+    token: str = Query(..., description="Token de verificación"),
+    challenge: str = Query(..., description="Desafío de verificación")
+) -> WebhookVerifyResponse:
+    if mode!="subscribe":
+        raise HTTPException(status_code=400, detail="Invalid mode")
+    
+    if token != settings.webhook_verify_token:
+        raise HTTPException(status_code=403, detail="Invalid token")
+    
+    return WebhookVerifyResponse(challenge=challenge)
+
+
+
 @app.post("/webhook/messages", response_model=MessageResponse)
 def create_webhook_message(request: WebhookMessageRequest) -> MessageResponse:
     
@@ -104,3 +122,7 @@ def create_webhook_message(request: WebhookMessageRequest) -> MessageResponse:
         assistant_message=turn.assistant_message.content,
         session_id=turn.session_id
     )
+
+
+
+
