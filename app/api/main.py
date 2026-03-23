@@ -126,7 +126,7 @@ def receive_webhook_message(request: WebhookMessageRequest) -> MessageResponse |
                 status="ignored",
                 detail=inbound_result.detail
             )
-        if inbound_result.turn is None:
+        if inbound_result.channel_result is None:
             return HTTPException(
                 status_code=500,
                 detail = "Parser returned no event for a processable payload"
@@ -137,7 +137,7 @@ def receive_webhook_message(request: WebhookMessageRequest) -> MessageResponse |
     except GenerationProviderError as exc:
         raise HTTPException(status_code=503, detail=f"Generation provider error: {exc}") from exc
 
-    turn = inbound_result.turn
+    turn = inbound_result.channel_result.turn
 
     return MessageResponse(
         session_id=turn.session_id,

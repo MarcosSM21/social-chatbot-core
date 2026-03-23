@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 
-from app.models.chat import ChatTurn
+from app.channels.http_channel_result import HttpChannelResult
 
 @dataclass
 class PlatformInboundResult:
     status: str
     detail: str
-    turn: ChatTurn | None = None
+    channel_result: HttpChannelResult | None = None
 
