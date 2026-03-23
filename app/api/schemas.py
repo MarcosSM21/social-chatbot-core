@@ -27,3 +27,7 @@ class WebhookMessageRequest(BaseModel):
     message_text: str = Field(..., min_length=1, description="Texto del mensaje")
     message_id: str | None = Field(default=None, description="ID del mensaje, si está disponible")
     channel_metadata: dict | None = Field(default=None, description="Metadatos específicos del canal")
+
+
+class WebhookVerifyResponse(BaseModel):
+    challenge: str = Field(..., description="Desafío para verificar el webhook")
