@@ -7,7 +7,14 @@ from app.api.schemas import (
     InfoResponse,
     WebhookMessageRequest,
     WebhookVerifyResponse,
-    WebhookEventResponse
+    WebhookEventResponse,
+    InstagramWebhookPayloadRequest
+)
+
+from app.channels.instagram_payload_parser import InstagramPayloadParser
+from app.models.provider_payloads import (
+    InstagramWebhookMessageEvent,
+    InstagramWebhookPayload
 )
 
 
@@ -146,5 +153,59 @@ def receive_webhook_message(request: WebhookMessageRequest) -> MessageResponse |
     )
 
 
+@app.post("/webhook/instagram/messages")
+def receive_instagram_webhook_message(request: InstagramWebhookPayloadRequest) -> MessageResponse | WebhookEventResponse:
 
+    instagram_parser = InstagramPayloadParser()
+    inbound_service = build_platform_inbound_service(settings)
+    
+
+    provider_payload = InstagramWebhookPayload(
+        object = request.object,
+        entry_id = request.entry_id,
+        messaging = [
+            InstagramWebhookMessageEvent(
+                sender_id = item.sender_id,
+                recipient_id= item.recipient_id,
+                timestamp= item.timestamp,
+                message_id = item.message_id,
+                text=item.text
+            ) for item in request.messaging
+        ]
+    )
+
+    try:
+        platform_payload = instagram_parser.parse(provider_payload)
+        inbound_result = inbound_service.process_payload(platform_payload)
+
+        if inbound_result.status == "ignored":
+            return WebhookEventResponse(
+                status="ignored",
+                detail = inbound_result.detail
+            )
+        
+        if inbound_result.channel_result is None:
+            return WebhookEventResponse(
+                status="ignored",
+                detail=inbound_result.detail
+            )
+
+        if inbound_result.channel_result is None:
+            raise HTTPException(
+                status_code = 500,
+                detail= "Inbound service returned no channel result for a processed provider payload"
+            )
+        
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except GenerationProviderError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    
+    turn = inbound_result.channel_result.turn
+
+    return MessageResponse(
+        session_id=turn.session_id,
+        user_message=turn.user_message.content,
+        assistant_message=turn.assistant_message.content
+    )
 
