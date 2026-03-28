@@ -200,3 +200,46 @@ Outbound preparation
       -> ChatTurn
       -> OutboundChannelMessage
 
+
+## status (VI)
+
+Phase 6 completed: provider-specific integration architecture and outbound preparation.
+
+The project currently provides:
+
+- a local chatbot mode via terminal
+- an internal HTTP API via FastAPI
+- a shared modular chat core
+- configurable bot behavior
+- local JSON persistence
+- pluggable generation providers
+- local LLM support through Ollama
+- provider fallback and robustness
+- platform-ready webhook flow
+- provider-specific payload parsing
+- provider-specific event filtering
+- outbound sender abstraction
+- external trace persistence for processed platform messages
+
+## Implemented architecture
+
+Provider-specific incoming flow
+   -> /providers/instagram/webhook/messages
+   -> InstagramWebhookPayload
+   -> InstagramPayloadParser
+      -> ProviderPayloadParseResult
+   -> PlatformWebhookPayload
+   -> PlatformInboundService
+      -> PlatformPayloadParser
+         -> PayloadParseResult
+      -> HttpChannelAdapter
+         -> ConversationMappingRepository
+         -> ChatOrchestrator
+            -> ConversationService
+               -> LocalChatRepository
+               -> ResponseEngine
+                  -> GenerationProvider
+      -> OutboundSender
+         -> OutboundSendResult
+      -> ExternalTraceRepository
+

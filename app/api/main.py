@@ -1,4 +1,10 @@
-from fastapi import FastAPI, HTTPException, Query
+import hashlib
+import hmac
+import json
+
+from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi.responses import HTMLResponse
+from pydantic import ValidationError
 
 from app.api.schemas import (
     MessageRequest,
@@ -6,16 +12,12 @@ from app.api.schemas import (
     HealthResponse,
     InfoResponse,
     WebhookMessageRequest,
-    WebhookVerifyResponse,
     WebhookEventResponse,
-    InstagramWebhookPayloadRequest
+    InstagramWebhookPayloadRequest,
 )
 
 from app.channels.instagram_payload_parser import InstagramPayloadParser
-from app.models.provider_payloads import (
-    InstagramWebhookMessageEvent,
-    InstagramWebhookPayload
-)
+from app.models.provider_payloads import InstagramWebhookPayload
 
 
 from app.core.settings import Settings
@@ -23,9 +25,10 @@ from app.models.external import ExternalMessageEvent
 from app.core.container import build_http_channel_adapter, build_platform_inbound_service
 from app.models.platform_payload import PlatformWebhookPayload
 from app.providers.exceptions import GenerationProviderError
-from app.channels.platform_payload_parser import PlatformPayloadParser
 from app.storage.external_trace_repository import ExternalTraceRepository
 from app.models.external_trace import ExternalTraceRecord
+from app.models.provider_raw_payload import ProviderRawPayloadRecord
+from app.storage.provider_raw_payload_repository import ProviderRawPayloadRepository
 
 
 
@@ -47,6 +50,7 @@ def root() -> dict:
         "docs_url": "/docs",
         "health_url": "/health",
         "info_url": "/info",
+        "privacy_policy_url": "/privacy-policy",
         "internal_messages_url": "/internal/messages",
         "generic_webhook_verify_url": "/webhooks/verify",
         "generic_webhook_messages_url": "/webhooks/messages",
@@ -66,6 +70,94 @@ def info() -> InfoResponse:
         enviroment=settings.app_env,
         llm_provider=settings.llm_provider
     )
+
+
+@app.get("/privacy-policy", response_class=HTMLResponse)
+def privacy_policy() -> HTMLResponse:
+    html = """
+    <!DOCTYPE html>
+    <html lang="es">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Politica de Privacidad | social-chatbot-core</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            background: #f7f7f5;
+            color: #1f2937;
+            margin: 0;
+            padding: 40px 20px;
+          }
+          main {
+            max-width: 760px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 32px;
+            border-radius: 16px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+          }
+          h1, h2 {
+            color: #111827;
+          }
+          p, li {
+            line-height: 1.6;
+          }
+          ul {
+            padding-left: 20px;
+          }
+          .note {
+            margin-top: 24px;
+            padding: 16px;
+            background: #fef3c7;
+            border-radius: 12px;
+          }
+        </style>
+      </head>
+      <body>
+        <main>
+          <h1>Politica de Privacidad</h1>
+          <p>
+            Esta es una pagina provisional de politica de privacidad para
+            <strong>social-chatbot-core</strong>.
+          </p>
+
+          <h2>Datos que pueden tratarse</h2>
+          <ul>
+            <li>Mensajes enviados por usuarios a traves de canales conectados.</li>
+            <li>Identificadores tecnicos de conversacion y plataforma.</li>
+            <li>Registros tecnicos necesarios para depuracion y trazabilidad.</li>
+          </ul>
+
+          <h2>Finalidad</h2>
+          <p>
+            Los datos se utilizan exclusivamente para pruebas tecnicas,
+            integraciones de mensajeria, procesamiento conversacional y
+            seguimiento operativo del sistema.
+          </p>
+
+          <h2>Conservacion</h2>
+          <p>
+            Durante esta fase de desarrollo, algunos datos pueden almacenarse
+            temporalmente en registros locales con fines de prueba.
+          </p>
+
+          <h2>Contacto</h2>
+          <p>
+            Si necesitas una version formal o definitiva de esta politica,
+            sustituye este contenido por la informacion legal real del proyecto
+            antes de usarlo en produccion.
+          </p>
+
+          <div class="note">
+            Este documento es un mockup tecnico para desarrollo y configuracion
+            inicial de integraciones.
+          </div>
+        </main>
+      </body>
+    </html>
+    """
+    return HTMLResponse(content=html)
 
 
 @app.post("/internal/messages", response_model=MessageResponse)
@@ -97,19 +189,7 @@ def create_internal_message(request: MessageRequest) -> MessageResponse:
     )
 
 
-@app.get("/webhooks/verify", response_model=WebhookVerifyResponse)
-def verify_webhook(
-    mode: str = Query(..., description="Modo de verificación"),
-    token: str = Query(..., description="Token de verificación"),
-    challenge: str = Query(..., description="Desafío de verificación")
-) -> WebhookVerifyResponse:
-    if mode!="subscribe":
-        raise HTTPException(status_code=400, detail="Invalid mode")
-    
-    if token != settings.webhook_verify_token:
-        raise HTTPException(status_code=403, detail="Invalid token")
-    
-    return WebhookVerifyResponse(challenge=challenge)
+
 
 
 
@@ -159,93 +239,134 @@ def receive_webhook_message(request: WebhookMessageRequest) -> MessageResponse |
     )
 
 
-@app.post("/providers/instagram/webhook/messages")
-def receive_instagram_webhook_message(request: InstagramWebhookPayloadRequest) -> MessageResponse | WebhookEventResponse:
+@app.post("/providers/instagram/webhook/messages", response_model=WebhookEventResponse)
+async def receive_instagram_webhook_message(request: Request) -> WebhookEventResponse:
+    raw_body = await request.body()
+    signature_header = request.headers.get("X-Hub-Signature-256")
 
-    instagram_parser = InstagramPayloadParser()
-    inbound_service = build_platform_inbound_service(settings)
-    
+    _validate_instagram_webhook_signature(raw_body, signature_header)
 
-    provider_payload = InstagramWebhookPayload(
-        object = request.object,
-        entry_id = request.entry_id,
-        messaging = [
-            InstagramWebhookMessageEvent(
-                sender_id = item.sender_id,
-                recipient_id= item.recipient_id,
-                timestamp= item.timestamp,
-                message_id = item.message_id,
-                text=item.text
-            ) for item in request.messaging
-        ]
+    raw_payload = _decode_instagram_webhook_payload(raw_body)
+    provider_payload_request = _parse_instagram_webhook_request(raw_body)
+    provider_payload = InstagramWebhookPayload.from_dict(
+        provider_payload_request.model_dump(mode="json")
     )
 
+    raw_payload_repository = ProviderRawPayloadRepository()
+    raw_payload_repository.save_record(
+        ProviderRawPayloadRecord(
+            provider="instagram",
+            endpoint="/providers/instagram/webhook/messages",
+            payload=raw_payload,
+        )
+    )
+
+    parser = InstagramPayloadParser()
+    provider_parser_result = parser.parse(provider_payload)
+
+    trace_repository = ExternalTraceRepository()
+    for parsed_event in provider_parser_result.events:
+        trace_repository.save_records(
+            ExternalTraceRecord(
+                platform="instagram",
+                external_conversation_id=parsed_event.external_conversation_id or "unknown",
+                external_user_id=parsed_event.external_user_id or "unknown",
+                internal_session_id=None,
+                incoming_message_text=parsed_event.incoming_message_text,
+                outgoing_message_text=None,
+                inbound_status=parsed_event.status,
+                outbound_status=None,
+                detail=parsed_event.detail,
+                provider_message_id=parsed_event.provider_message_id,
+                outbound_message_id=None,
+            )
+        )
+
+    response_status = "accepted" if provider_parser_result.status == "captured" else "ignored"
+    return WebhookEventResponse(
+        status=response_status,
+        detail=provider_parser_result.detail,
+    )
+
+### VERIFICACION INSTAGRAM ###
+@app.get("/providers/instagram/webhook/messages")
+def verify_instagram_webhook_messages(
+    hub_mode: str = Query(..., alias="hub.mode"),
+    hub_token: str = Query(..., alias="hub.verify_token"),
+    hub_challenge: str = Query(..., alias="hub.challenge"),
+):
+    return execute_webhook_verification(
+        mode=hub_mode,
+        token=hub_token,
+        challenge=hub_challenge,
+    )
+
+
+@app.get("/webhooks/verify")
+def verify_generic_webhook(
+    hub_mode: str = Query(..., alias="hub.mode"),
+    hub_token: str = Query(..., alias="hub.verify_token"),
+    hub_challenge: str = Query(..., alias="hub.challenge"),
+):
+    return execute_webhook_verification(mode=hub_mode, token=hub_token, challenge=hub_challenge)
+
+
+#==============FUNCIONES_AUXILIARES=====================
+
+def execute_webhook_verification(mode: str, token: str, challenge: str):
+    if mode != "subscribe":
+        raise HTTPException(status_code=400, detail="Invalid mode")
+    
+    if token != settings.webhook_verify_token:
+        raise HTTPException(status_code=403, detail="Invalid token")
+    
+    # IMPORTANTE: Retornamos Response para enviar texto plano, no JSON
+    return Response(content=challenge, media_type="text/plain")
+
+
+def _parse_instagram_webhook_request(raw_body: bytes) -> InstagramWebhookPayloadRequest:
     try:
-        provider_parser_result = instagram_parser.parse(provider_payload)
-        
-    
-        if provider_parser_result.status == "ignored":
-            trace_repository = ExternalTraceRepository()
-            trace_repository.save_records(
-                ExternalTraceRecord(
-                    platform="instagram",
-                    external_conversation_id=provider_payload.messaging[0].sender_id if provider_payload.messaging else "unknown",
-                    external_user_id=provider_payload.messaging[0].sender_id if provider_payload.messaging else "unknown",
-                    internal_session_id=None,
-                    incoming_message_text=provider_payload.messaging[0].text if provider_payload.messaging else None,
-                    outgoing_message_text=None,
-                    inbound_status="ignored",
-                    outbound_status=None,
-                    detail= provider_parser_result.detail,
-                    provider_message_id=provider_payload.messaging[0].message_id if provider_payload.messaging else None,
-                    outbound_message_id=None,
-                )
-    )
-            return WebhookEventResponse(
-                status="ignored",
-                detail = provider_parser_result.detail
-            )
-        
-        if provider_parser_result.payload is None:
-            return WebhookEventResponse(
-                status="ignored",
-                detail=provider_parser_result.detail
-            )
-        
-        
-        inbound_result = inbound_service.process_payload(provider_parser_result.payload) 
-        
-        if inbound_result.status == "ignored":
-            return WebhookEventResponse(
-                status="ignored",
-                detail = inbound_result.detail
-            )
+        return InstagramWebhookPayloadRequest.model_validate_json(raw_body)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid Instagram webhook payload",
+        ) from exc
 
 
-        if inbound_result.channel_result is None:
-            raise HTTPException(
-                status_code = 500,
-                detail= "Inbound service returned no channel result for a processed provider payload"
-            )
-        
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except GenerationProviderError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    
-    turn = inbound_result.channel_result.turn
+def _decode_instagram_webhook_payload(raw_body: bytes) -> dict:
+    try:
+        payload = json.loads(raw_body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Instagram webhook payload is not valid JSON",
+        ) from exc
 
-    return MessageResponse(
-        session_id=turn.session_id,
-        user_message=turn.user_message.content,
-        assistant_message=turn.assistant_message.content
-    )
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=400,
+            detail="Instagram webhook payload must be a JSON object",
+        )
 
-@app.get("/providers/instagram/webhook/verify", response_model=WebhookVerifyResponse)
-def verify_instagram_webhook(
-    mode: str = Query(..., description="Verification mode"),
-    token: str = Query(..., description="Verification token"),
-    challenge: str = Query(..., description="Challenge string"),
-) -> WebhookVerifyResponse:
-    return verify_webhook(mode=mode, token=token, challenge=challenge)
+    return payload
 
+
+def _validate_instagram_webhook_signature(raw_body: bytes, signature_header: str | None) -> None:
+    if not settings.instagram_app_secret:
+        raise HTTPException(
+            status_code=500,
+            detail="INSTAGRAM_APP_SECRET is not configured",
+        )
+
+    if not signature_header:
+        raise HTTPException(status_code=403, detail="Missing webhook signature")
+
+    expected_signature = "sha256=" + hmac.new(
+        settings.instagram_app_secret.encode("utf-8"),
+        msg=raw_body,
+        digestmod=hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected_signature, signature_header.strip()):
+        raise HTTPException(status_code=403, detail="Invalid webhook signature")
