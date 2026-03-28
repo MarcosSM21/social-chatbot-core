@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 class MessageRequest(BaseModel):
     message: str = Field(..., min_length=1, description="El mensaje del usuario")
@@ -41,18 +41,65 @@ class WebhookEventResponse(BaseModel):
     detail: str | None = Field(default=None, description="Detalles adicionales sobre el procesamiento del evento")
 
 
-class InstagramWebhookMessageEventRequest(BaseModel):
-    sender_id: str = Field(..., min_length=1, description="External sender identifier")
-    recipient_id: str = Field(..., min_length=1, description="External recipient identifier")
-    timestamp: int | None = Field(default=None, description="Message timestamp")
-    message_id: str | None = Field(default=None, description="External message identifier")
+class InstagramWebhookUserRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: str = Field(..., min_length=1, description="Instagram scoped identifier")
+
+
+class InstagramWebhookMessageRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    mid: str | None = Field(default=None, description="External message identifier")
     text: str | None = Field(default=None, description="Message text")
+    is_echo: bool | None = Field(default=None, description="Whether the event is an echo")
+
+
+class InstagramWebhookMessagingRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    sender: InstagramWebhookUserRequest
+    recipient: InstagramWebhookUserRequest
+    timestamp: int | None = Field(default=None, description="Message timestamp")
+    message: InstagramWebhookMessageRequest | None = Field(default=None, description="Message payload")
+
+
+class InstagramWebhookChangeValueRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    sender: InstagramWebhookUserRequest | None = Field(default=None, description="External sender identifier")
+    recipient: InstagramWebhookUserRequest | None = Field(default=None, description="External recipient identifier")
+    timestamp: int | str | None = Field(default=None, description="Message timestamp")
+    message: InstagramWebhookMessageRequest | None = Field(default=None, description="Message payload")
+
+
+class InstagramWebhookChangeRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    field: str = Field(..., min_length=1, description="Webhook field name")
+    value: InstagramWebhookChangeValueRequest | None = Field(default=None, description="Webhook change value")
+
+
+class InstagramWebhookEntryRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: str = Field(..., min_length=1, description="Provider entry identifier")
+    time: int | None = Field(default=None, description="Entry timestamp")
+    messaging: list[InstagramWebhookMessagingRequest] = Field(
+        default_factory=list,
+        description="List of provider messaging events",
+    )
+    changes: list[InstagramWebhookChangeRequest] = Field(
+        default_factory=list,
+        description="List of provider change events",
+    )
 
 
 class InstagramWebhookPayloadRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     object: str = Field(..., min_length=1, description="Provider object name")
-    entry_id: str = Field(..., min_length=1, description="Provider entry identifier")
-    messaging: list[InstagramWebhookMessageEventRequest] = Field(
+    entry: list[InstagramWebhookEntryRequest] = Field(
         default_factory=list,
-        description="List of provider messaging events",
+        description="List of provider entry objects",
     )
