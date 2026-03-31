@@ -21,7 +21,7 @@ class HttpChannelAdapter:
         )
         
         user_message = ChatMessage(role="user", content=event.message_text)
-        turn = self.orchestrator.handle_message(message=user_message, session_id=internal_session_id)
+        turn = self.orchestrator.handle_message(message=user_message, session_id=internal_session_id, platform=event.platform, external_user_id=event.user_id)
 
         outbound_message = OutboundChannelMessage(
             platform=event.platform,
@@ -39,3 +39,4 @@ class HttpChannelAdapter:
             turn = turn,
             outbound_message=outbound_message
         )
+    

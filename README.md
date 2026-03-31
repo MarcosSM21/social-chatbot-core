@@ -297,3 +297,62 @@ Instagram DM flow
    -> ExternalTraceRepository
 
 The main architectural gain of this phase is that the system no longer asks each provider to invent its own conversational context. The core now builds that context explicitly, which makes the next phase predictable: adding real per-user memory without distorting the Instagram flow or the provider layer.
+
+
+## Status (VIII)
+
+Phase 2 completed: per-user memory foundations.
+
+This phase introduces a first real memory layer on top of the conversational core. The system no longer depends only on recent turns: it can now persist simple memory per external user, load it into the conversation context, update it after each turn, and expose its usage through operational traces.
+
+The project now provides:
+
+- explicit `UserMemory` modeling per platform and external user
+- dedicated `UserMemoryRepository` persistence in `data/user_memories.json`
+- separation between:
+  - raw chat history
+  - stable user profile
+  - rolling conversation summary
+- memory-aware context building through `ConversationContextBuilder`
+- memory loading before generation
+- memory updating after generation
+- basic memory usage traceability with:
+  - `memory_loaded`
+  - `memory_updated`
+
+## Implemented architecture
+
+Instagram DM flow with memory
+   -> GET/POST /providers/instagram/webhook/messages
+   -> InstagramWebhookPayload
+   -> InstagramPayloadParser
+      -> ProviderPayloadParseResult
+      -> ExternalMessageEvent
+   -> HttpChannelAdapter
+      -> ConversationMappingRepository
+      -> ChatOrchestrator
+         -> ConversationService
+            -> LocalChatRepository
+            -> UserMemoryRepository
+               -> UserMemory
+                  -> user_profile
+                  -> conversation_summary
+                  -> updated_at
+            -> ConversationContextBuilder
+               -> ConversationContext
+                  -> current_message
+                  -> recent_history
+                  -> system_instructions
+                  -> style_instructions
+                  -> user_profile
+                  -> conversation_summary
+            -> ResponseEngine
+               -> GenerationProvider
+         -> ChatTurn
+            -> session_metadata
+               -> memory_loaded
+               -> memory_updated
+   -> InstagramOutboundSender
+   -> ExternalTraceRepository
+
+At this stage, memory is intentionally simple and controlled. The profile is updated through basic explicit-user-signal rules, and the conversation summary is kept as a compact rolling summary of recent exchanges. The goal of this phase is not perfect memory, but to establish a clean, inspectable foundation for personalization.

@@ -32,7 +32,7 @@ class LocalChannel:
                     continue
 
                 user_message = ChatMessage(role="user", content=user_input)
-                turn = self.orchestrator.handle_message(user_message, self.session_id)
+                turn = self.orchestrator.handle_message(user_message, self.session_id, platform="local", external_user_id=self.session_id)
                 print(f"LLM:{turn.assistant_message.content}")
         
         except KeyboardInterrupt:
