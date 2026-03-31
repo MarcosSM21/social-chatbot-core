@@ -2,6 +2,7 @@ from app.core.settings import Settings
 from app.models.chat import ChatMessage, ChatTurn
 from app.models.conversation_context import ConversationContext
 from app.storage.user_memory_repository import UserMemoryRepository
+from app.models.conversation_style import ConversationStyle
 
 
 class ConversationContextBuilder:
@@ -13,11 +14,18 @@ class ConversationContextBuilder:
 
         user_memory = self.user_memory_repository.get_or_create(platform=platform, external_user_id=external_user_id)
 
+        style = self._build_conversation_style()
+        style_rules = self._build_style_rules()
+
         return ConversationContext(
             current_message=message,
             recent_history=recent_history,
             system_instructions=self._build_system_instructions(),
-            style_instructions=self._build_style_instructions(),
+            style=style,
+            style_instructions=self._build_style_instructions(
+                style=style,
+                style_rules=style_rules
+            ),
             user_profile=user_memory.user_profile,
             conversation_summary=user_memory.conversation_summary,
         )
@@ -30,10 +38,40 @@ class ConversationContextBuilder:
             "Do not invent memories, facts, or previous conversation details that are not present in the provided context."
         )
 
-    def _build_style_instructions(self) -> str:
+
+    def _build_conversation_style(self) -> ConversationStyle:
+        base_style = ConversationStyle.from_preset(self.settings.style_preset)
+
+        return ConversationStyle(
+            persona_hint=self.settings.style_persona_hint or base_style.persona_hint,
+            tone=self.settings.style_tone or base_style.tone,
+            response_length=self.settings.style_response_length or base_style.response_length,
+            directness=self.settings.style_directness or base_style.directness,
+            warmth=self.settings.style_warmth or base_style.warmth,
+            formality=self.settings.style_formality or base_style.formality,
+            rhythm=self.settings.style_rhythm or base_style.rhythm,
+            empathy=self.settings.style_empathy or base_style.empathy,
+        )
+    
+    def _build_style_rules(self) -> list[str]:
+        return [
+            "Make the user feel heard and understood.",
+            "Avoid sounding robotic, overly formal, or excessively verbose.",
+            "Do not overexplain unless the user asks for more detail.",
+        ]
+
+
+    def _build_style_instructions(self, style: ConversationStyle, style_rules: list[str]) -> str:
+        rules_text = " ".join(style_rules)
+
         return (
-            f"Your tone is {self.settings.bot_tone}. "
-            "Respond in a short, direct, calm, and natural way. "
-            "Make the user feel heard and understood. "
-            "Avoid sounding robotic, overly formal, or excessively verbose."
+            f"Persona hint: {style.persona_hint} "
+            f"Tone: {style.tone}. "
+            f"Response length: {style.response_length}. "
+            f"Directness: {style.directness}. "
+            f"Warmth: {style.warmth}. "
+            f"Formality: {style.formality}. "
+            f"Rhythm: {style.rhythm}. "
+            f"Empathy: {style.empathy}. "
+            f"Style rules: {rules_text}"
         )

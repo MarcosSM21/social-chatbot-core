@@ -1,4 +1,5 @@
 from dataclasses import asdict, dataclass
+from typing import Any
 
 
 @dataclass
@@ -16,6 +17,8 @@ class ExternalTraceRecord:
     outbound_message_id: str | None = None
     memory_loaded: bool | None = None
     memory_updated: bool | None = None
+    style_preset: str | None = None
+    style_snapshot: dict[str, Any] | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -35,5 +38,7 @@ class ExternalTraceRecord:
             provider_message_id=data.get("provider_message_id"),
             outbound_message_id=data.get("outbound_message_id"),
             memory_loaded=data.get("memory_loaded"),
-            memory_updated =data.get("memory_updated")
+            memory_updated =data.get("memory_updated"),
+            style_preset=data.get("style_preset"),
+            style_snapshot=data.get("style_snapshot"),
         )

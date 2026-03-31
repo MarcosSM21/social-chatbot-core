@@ -26,6 +26,17 @@ class Settings:
     instagram_access_token: str
     instagram_app_secret: str
 
+    style_persona_hint: str
+    style_tone: str
+    style_response_length: str
+    style_directness: str
+    style_warmth: str
+    style_formality: str
+    style_rhythm: str
+    style_empathy: str
+    style_preset: str
+
+
     @classmethod
     def from_env(cls)-> "Settings":
         return cls(
@@ -48,5 +59,15 @@ class Settings:
             instagram_ig_user_id=os.getenv("INSTAGRAM_IG_USER_ID", ""),
             instagram_access_token=os.getenv("INSTAGRAM_ACCESS_TOKEN", os.getenv("INSTAGRAM_TOKEN", "")),
             instagram_app_secret=os.getenv("INSTAGRAM_APP_SECRET", ""),
+            style_preset=os.getenv("STYLE_PRESET", "short_direct_calm"),
+            style_persona_hint=os.getenv("STYLE_PERSONA_HINT", ""),
+            style_tone=os.getenv("STYLE_TONE", ""),
+            style_response_length=os.getenv("STYLE_RESPONSE_LENGTH", ""),
+            style_directness=os.getenv("STYLE_DIRECTNESS", ""),
+            style_warmth=os.getenv("STYLE_WARMTH", ""),
+            style_formality=os.getenv("STYLE_FORMALITY", ""),
+            style_rhythm=os.getenv("STYLE_RHYTHM", ""),
+            style_empathy=os.getenv("STYLE_EMPATHY", ""),
+
         )
     

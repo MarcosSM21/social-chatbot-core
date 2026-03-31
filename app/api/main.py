@@ -406,6 +406,8 @@ def _save_processed_trace(
             outbound_message_id=send_result.external_message_id,
             memory_loaded=turn_metadata.get("memory_loaded"),
             memory_updated=turn_metadata.get("memory_updated"),
+            style_preset=turn_metadata.get("style_preset"),
+            style_snapshot=turn_metadata.get("style_snapshot"),
         )
     )
 
