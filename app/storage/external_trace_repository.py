@@ -28,3 +28,14 @@ class ExternalTraceRepository:
             json.dumps(serialized, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
+
+    def has_processed_provider_message(self, provider_message_id: str | None) -> bool:
+        if not provider_message_id:
+            return False
+
+        records = self.load_records()
+        return any(
+            record.provider_message_id == provider_message_id
+            and record.inbound_status == "processed"
+            for record in records
+        )

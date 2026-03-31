@@ -16,7 +16,9 @@ from app.api.schemas import (
     InstagramWebhookPayloadRequest,
 )
 
+from app.channels.http_channel_result import HttpChannelResult
 from app.channels.instagram_payload_parser import InstagramPayloadParser
+from app.channels.provider_parser_result import ProviderPayloadParseResult
 from app.models.provider_payloads import InstagramWebhookPayload
 
 
@@ -29,6 +31,9 @@ from app.storage.external_trace_repository import ExternalTraceRepository
 from app.models.external_trace import ExternalTraceRecord
 from app.models.provider_raw_payload import ProviderRawPayloadRecord
 from app.storage.provider_raw_payload_repository import ProviderRawPayloadRepository
+from app.outbound.instagram_sender import InstagramOutboundSender
+from app.outbound.result import OutboundSendResult
+
 
 
 
@@ -42,7 +47,7 @@ app = FastAPI(
 settings = Settings.from_env()
 
 
-
+###### RUTAS AUXILIARES ##########
 @app.get("/")
 def root() -> dict:
     return {
@@ -70,8 +75,6 @@ def info() -> InfoResponse:
         enviroment=settings.app_env,
         llm_provider=settings.llm_provider
     )
-
-
 @app.get("/privacy-policy", response_class=HTMLResponse)
 def privacy_policy() -> HTMLResponse:
     html = """
@@ -159,6 +162,9 @@ def privacy_policy() -> HTMLResponse:
     """
     return HTMLResponse(content=html)
 
+###########################################
+
+########### MENSAJES ########################
 
 @app.post("/internal/messages", response_model=MessageResponse)
 def create_internal_message(request: MessageRequest) -> MessageResponse:
@@ -187,10 +193,6 @@ def create_internal_message(request: MessageRequest) -> MessageResponse:
         assistant_message=channel_result.turn.assistant_message.content,
         session_id=channel_result.turn.session_id
     )
-
-
-
-
 
 
 @app.post("/webhooks/messages")
@@ -239,6 +241,9 @@ def receive_webhook_message(request: WebhookMessageRequest) -> MessageResponse |
     )
 
 
+
+###################### INSTAGRAM RECIBE MENSAJE EN DM #######################################
+
 @app.post("/providers/instagram/webhook/messages", response_model=WebhookEventResponse)
 async def receive_instagram_webhook_message(request: Request) -> WebhookEventResponse:
     raw_body = await request.body()
@@ -252,35 +257,22 @@ async def receive_instagram_webhook_message(request: Request) -> WebhookEventRes
         provider_payload_request.model_dump(mode="json")
     )
 
-    raw_payload_repository = ProviderRawPayloadRepository()
-    raw_payload_repository.save_record(
-        ProviderRawPayloadRecord(
-            provider="instagram",
-            endpoint="/providers/instagram/webhook/messages",
-            payload=raw_payload,
-        )
-    )
-
-    parser = InstagramPayloadParser()
-    provider_parser_result = parser.parse(provider_payload)
-
+    _store_instagram_raw_payload(raw_payload)
+    provider_parser_result, external_events = _build_external_events(provider_payload)
     trace_repository = ExternalTraceRepository()
-    for parsed_event in provider_parser_result.events:
-        trace_repository.save_records(
-            ExternalTraceRecord(
-                platform="instagram",
-                external_conversation_id=parsed_event.external_conversation_id or "unknown",
-                external_user_id=parsed_event.external_user_id or "unknown",
-                internal_session_id=None,
-                incoming_message_text=parsed_event.incoming_message_text,
-                outgoing_message_text=None,
-                inbound_status=parsed_event.status,
-                outbound_status=None,
-                detail=parsed_event.detail,
-                provider_message_id=parsed_event.provider_message_id,
-                outbound_message_id=None,
+
+    if external_events:
+        external_event = external_events[0]
+
+        if trace_repository.has_processed_provider_message(external_event.message_id):
+            return WebhookEventResponse(
+                status="ignored",
+                detail="Duplicate provider message ignored.",
             )
-        )
+
+        channel_result, send_result = _process_and_send_external_event(external_event)
+        _save_processed_trace(trace_repository, external_event, channel_result, send_result)
+
 
     response_status = "accepted" if provider_parser_result.status == "captured" else "ignored"
     return WebhookEventResponse(
@@ -350,6 +342,67 @@ def _decode_instagram_webhook_payload(raw_body: bytes) -> dict:
         )
 
     return payload
+
+
+def _store_instagram_raw_payload(raw_payload: dict) -> None:
+    raw_payload_repository = ProviderRawPayloadRepository()
+    raw_payload_repository.save_record(
+        ProviderRawPayloadRecord(
+            provider="instagram",
+            endpoint="/providers/instagram/webhook/messages",
+            payload=raw_payload,
+        )
+    )
+
+
+def _build_external_events(
+    provider_payload: InstagramWebhookPayload,
+) -> tuple[ProviderPayloadParseResult, list[ExternalMessageEvent]]:
+    parser = InstagramPayloadParser()
+    provider_parser_result = parser.parse(provider_payload)
+
+    external_events: list[ExternalMessageEvent] = []
+    for parsed_event in provider_parser_result.events:
+        external_event = parsed_event.to_external_message_event()
+        if external_event is not None:
+            external_events.append(external_event)
+
+    return provider_parser_result, external_events
+
+
+def _process_and_send_external_event(
+    external_event: ExternalMessageEvent,
+) -> tuple[HttpChannelResult, OutboundSendResult]:
+    channel_adapter = build_http_channel_adapter(settings)
+    channel_result = channel_adapter.process_event(external_event)
+
+    instagram_sender = InstagramOutboundSender(settings)
+    send_result = instagram_sender.send(channel_result.outbound_message)
+
+    return channel_result, send_result
+
+
+def _save_processed_trace(
+    trace_repository: ExternalTraceRepository,
+    external_event: ExternalMessageEvent,
+    channel_result: HttpChannelResult,
+    send_result: OutboundSendResult,
+) -> None:
+    trace_repository.save_records(
+        ExternalTraceRecord(
+            platform="instagram",
+            external_conversation_id=external_event.conversation_id,
+            external_user_id=external_event.user_id,
+            internal_session_id=channel_result.turn.session_id,
+            incoming_message_text=external_event.message_text,
+            outgoing_message_text=channel_result.outbound_message.message_text,
+            inbound_status="processed",
+            outbound_status=send_result.status,
+            detail=f"Inbound Instagram message processed by internal core. Outbound result: {send_result.detail}",
+            provider_message_id=external_event.message_id,
+            outbound_message_id=send_result.external_message_id,
+        )
+    )
 
 
 def _validate_instagram_webhook_signature(raw_body: bytes, signature_header: str | None) -> None:

@@ -1,21 +1,20 @@
 from app.core.settings import Settings
-from app.models.chat import ChatMessage, ChatTurn
+from app.models.conversation_context import ConversationContext
 
 
 class MockGenerationProvider:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
-    def generate_reply(self,message: ChatMessage,history: list[ChatTurn],) -> str:
+    def generate_reply(self, context: ConversationContext) -> str:
         
-        cleaned_message = self._normalize_message(message.content)
+        cleaned_message = self._normalize_message(context.current_message.content)
 
         if not cleaned_message:
             return self._empty_message_response()
 
-        context = self._build_context(cleaned_message, history)
-
-        prompt = self._build_mock_prompt(context)
+        prompt_context = self._build_context(context, cleaned_message)
+        prompt = self._build_mock_prompt(prompt_context)
 
         return self._generate_from_prompt(prompt)
     
@@ -23,14 +22,15 @@ class MockGenerationProvider:
     def _normalize_message(self, content: str) -> str:
         return content.strip()
     
-    def _build_context(self, message: str, history: list[ChatTurn]) -> dict:
+    def _build_context(self, context: ConversationContext, message: str) -> dict:
         return {
             "bot_name": self.settings.bot_name,
             "bot_tone": self.settings.bot_tone,
             "message": message,
-            "has_history": len(history) > 0,
-            "history_size": len(history),
-            "recent_user_messages": [turn.user_message.content for turn in history[-3:]],
+            "has_history": len(context.recent_history) > 0,
+            "history_size": len(context.recent_history),
+            "recent_user_messages": [turn.user_message.content for turn in context.recent_history[-3:]],
+            "style_instructions": context.style_instructions,
         }
     
     def _build_mock_prompt(self, context: dict) -> dict:
