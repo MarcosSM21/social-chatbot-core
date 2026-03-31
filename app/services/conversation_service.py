@@ -61,6 +61,8 @@ class ConversationService:
             session_metadata={
                 "memory_loaded": memory_loaded,
                 "memory_updated": True,
+                "style_preset": self.context_builder.settings.style_preset,
+                "style_snapshot": context.style.to_dict(),
             },
         )
 

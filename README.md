@@ -356,3 +356,54 @@ Instagram DM flow with memory
    -> ExternalTraceRepository
 
 At this stage, memory is intentionally simple and controlled. The profile is updated through basic explicit-user-signal rules, and the conversation summary is kept as a compact rolling summary of recent exchanges. The goal of this phase is not perfect memory, but to establish a clean, inspectable foundation for personalization.
+
+
+## Status (IX)
+
+Phase 3 completed: configurable conversational style.
+
+This phase turns style from a loose prompt fragment into a first-class part of the conversational core. The system can now build an explicit style object, derive prompt instructions from it, choose a style preset, override style attributes through settings, and expose the effective style in traces.
+
+The project now provides:
+
+- explicit `ConversationStyle` modeling
+- reusable style presets such as:
+  - `short_direct_calm`
+  - `warm_supportive`
+  - `formal_clear`
+- style construction through `ConversationContextBuilder`
+- separation between:
+  - style attributes
+  - style rules
+  - system instructions
+- preset-based style defaults with optional per-attribute overrides from settings
+- style traceability through:
+  - `style_preset`
+  - `style_snapshot`
+
+## Implemented architecture
+
+Conversational style flow
+   -> Settings
+      -> style_preset
+      -> optional style overrides
+   -> ConversationContextBuilder
+      -> ConversationStyle.from_preset(...)
+      -> per-field override merge
+      -> style rules
+      -> style_instructions
+   -> ConversationContext
+      -> style
+      -> style_instructions
+   -> ResponseEngine
+      -> GenerationProvider
+   -> ChatTurn
+      -> session_metadata
+         -> style_preset
+         -> style_snapshot
+   -> ExternalTraceRepository
+      -> ExternalTraceRecord
+         -> style_preset
+         -> style_snapshot
+
+The main gain of this phase is controllability. Style is no longer trapped inside ad hoc prompt text: it is now configurable, inspectable, and traceable across the full Instagram conversation flow.
