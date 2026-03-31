@@ -388,6 +388,9 @@ def _save_processed_trace(
     channel_result: HttpChannelResult,
     send_result: OutboundSendResult,
 ) -> None:
+    
+    turn_metadata = channel_result.turn.session_metadata or {}
+
     trace_repository.save_records(
         ExternalTraceRecord(
             platform="instagram",
@@ -401,6 +404,8 @@ def _save_processed_trace(
             detail=f"Inbound Instagram message processed by internal core. Outbound result: {send_result.detail}",
             provider_message_id=external_event.message_id,
             outbound_message_id=send_result.external_message_id,
+            memory_loaded=turn_metadata.get("memory_loaded"),
+            memory_updated=turn_metadata.get("memory_updated"),
         )
     )
 

@@ -16,6 +16,7 @@ from app.services.platform_inbound_service import PlatformInboundService
 from app.outbound.mock_sender import MockOutboundSender
 from app.storage.external_trace_repository import ExternalTraceRepository
 from app.services.conversation_context_builder import ConversationContextBuilder
+from app.storage.user_memory_repository import UserMemoryRepository
 
 
 def build_generation_provider(settings: Settings):
@@ -36,12 +37,14 @@ def build_chat_orchestrator(settings: Settings) -> ChatOrchestrator:
     generation_provider = build_generation_provider(settings)
     response_engine = ResponseEngine(generation_provider)
     chat_repository = LocalChatRepository()
-    context_builder = ConversationContextBuilder(settings)
+    user_memory_repository = UserMemoryRepository()
+    context_builder = ConversationContextBuilder(settings, user_memory_repository=user_memory_repository)
 
     conversation_service = ConversationService(
         response_engine,
         chat_repository,
         context_builder,
+        user_memory_repository
     )
     return ChatOrchestrator(conversation_service)
 
