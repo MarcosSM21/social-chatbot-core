@@ -1,20 +1,23 @@
 from app.engine.response_engine import ResponseEngine
 from app.models.chat import ChatMessage, ChatTurn
 from app.storage.local_chat_repository import LocalChatRepository
+from app.services.conversation_context_builder import ConversationContextBuilder
 
 class ConversationService:
-    def __init__(
-            self,
-            response_engine: ResponseEngine,
-            chat_repository: LocalChatRepository
-        ) -> None:  
+    def __init__(self, response_engine: ResponseEngine, chat_repository: LocalChatRepository, context_builder: ConversationContextBuilder) -> None:  
         self.response_engine = response_engine
         self.chat_repository = chat_repository
-    
+        self.context_builder = context_builder
+
     def process_message(self, message: ChatMessage, session_id: str) -> ChatTurn:
         recent_history = self.chat_repository.get_recent_turns(session_id, limit=3)
 
-        assistant_message = self.response_engine.generate_response(message=message, history=recent_history)
+        context = self.context_builder.build(
+            message=message,
+            recent_history=recent_history
+        )
+
+        assistant_message = self.response_engine.generate_response(context=context)
 
         turn = ChatTurn(
             session_id=session_id,

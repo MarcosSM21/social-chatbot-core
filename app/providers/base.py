@@ -1,11 +1,7 @@
 from typing import Protocol
 
-from app.models.chat import ChatMessage, ChatTurn
+from app.models.conversation_context import ConversationContext
 
 class GenerationProvider(Protocol):
-    def generate_reply(
-            self, 
-            message:ChatMessage, 
-            history:list[ChatTurn]
-            ) -> str:
+    def generate_reply(self, conversation_context: ConversationContext) -> str:
         ...

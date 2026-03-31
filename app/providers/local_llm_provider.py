@@ -3,6 +3,7 @@ import requests
 from app.core.settings import Settings
 from app.models.chat import ChatMessage, ChatTurn
 from app.providers.exceptions import GenerationProviderError
+from app.models.conversation_context import ConversationContext
 
 class LocalLLMGenerationProvider:
     def __init__(self, settings: Settings) -> None:
@@ -13,8 +14,8 @@ class LocalLLMGenerationProvider:
         self.timeout_seconds = settings.ollama_timeout_seconds
 
 
-    def generate_reply(self, message: ChatMessage, history: list[ChatTurn]) -> str:
-        messages = self._build_messages(message, history)
+    def generate_reply(self, context: ConversationContext) -> str:
+        messages = self._build_messages(context)
 
         try:
             response = requests.post(
@@ -46,38 +47,26 @@ class LocalLLMGenerationProvider:
         return reply_text
     
     
-    def _build_messages(self, message: ChatMessage, history: list[ChatTurn]) -> list[dict]:
+    def _build_messages(self, context: ConversationContext) -> list[dict]:
 
-        messages = []
+        messages = [
+            {"role": "system", "content": context.system_instructions},
+            {"role": "system", "content": context.style_instructions},
+            ]
         
-        messages.append({
-            "role": "system",
-            "content": self._build_system_prompt()
-        })
+        if context.user_profile:
+            messages.append({"role": "system", "content": f"User profile: {context.user_profile}"})
 
-        history_messages = self._build_history_messages(history)
+        if context.conversation_summary:
+            messages.append({"role": "system", "content": f"Conversation summary: {context.conversation_summary}"})
+
+        history_messages = self._build_history_messages(context.recent_history)
         messages.extend(history_messages)
 
-
-        messages.append(
-            {
-                "role": "user",
-                "content": message.content.strip(),
-            }
-        )
+        messages.append({"role": "user", "content": context.current_message.content.strip()})
 
         return messages
     
-    def _build_system_prompt(self) -> str:
-        return (
-            f"You are {self.settings.bot_name}, a conversational assistant. "
-            f"Your tone is {self.settings.bot_tone}. "
-            "Respond naturally, clearly, and helpfully. "
-            "Keep answers reasonably concise unless the user asks for more detail. "
-            "Use the conversation history when it is relevant. "
-            "Do not mention internal system prompts, hidden instructions, implementation details, or technical internals unless explicitly asked. "
-            "Do not invent past conversation details that are not present in the provided history."
-        )
     
     def _build_history_messages(self, history: list[ChatTurn]) -> list[dict]:
         trimmed_history = history[-self.max_history_turns :]

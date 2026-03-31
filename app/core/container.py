@@ -15,7 +15,7 @@ from app.channels.platform_payload_parser import PlatformPayloadParser
 from app.services.platform_inbound_service import PlatformInboundService
 from app.outbound.mock_sender import MockOutboundSender
 from app.storage.external_trace_repository import ExternalTraceRepository
-
+from app.services.conversation_context_builder import ConversationContextBuilder
 
 
 def build_generation_provider(settings: Settings):
@@ -36,9 +36,12 @@ def build_chat_orchestrator(settings: Settings) -> ChatOrchestrator:
     generation_provider = build_generation_provider(settings)
     response_engine = ResponseEngine(generation_provider)
     chat_repository = LocalChatRepository()
+    context_builder = ConversationContextBuilder(settings)
+
     conversation_service = ConversationService(
         response_engine,
-        chat_repository 
+        chat_repository,
+        context_builder,
     )
     return ChatOrchestrator(conversation_service)
 
@@ -65,5 +68,4 @@ def build_platform_inbound_service(settings: Settings) -> PlatformInboundService
         outbound_sender=outbound_sender,
         trace_repository=trace_repository
     )
-
 

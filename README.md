@@ -243,3 +243,57 @@ Provider-specific incoming flow
          -> OutboundSendResult
       -> ExternalTraceRepository
 
+
+## Status (VII)
+
+Phase 1 completed: conversational context consolidation.
+
+This phase does not add memory yet. Its goal is to professionalize the core so style, memory, and safety can be added later without mixing concerns inside the LLM providers.
+
+The project now provides:
+
+- real Instagram DM capture and reply flow
+- raw provider payload persistence
+- external trace persistence for inbound and outbound flow
+- explicit `ConversationContext` modeling
+- `ConversationContextBuilder` as the single place where conversational context is assembled
+- separation between:
+  - system instructions
+  - style instructions
+  - recent history
+  - future memory slots
+- generation providers that consume a full context instead of building it ad hoc
+- reserved slots for future per-user memory:
+  - `user_profile`
+  - `conversation_summary`
+
+## Implemented architecture
+
+Instagram DM flow
+   -> GET/POST /providers/instagram/webhook/messages
+   -> InstagramWebhookPayload
+   -> InstagramPayloadParser
+      -> ProviderPayloadParseResult
+      -> ExternalMessageEvent
+   -> HttpChannelAdapter
+      -> ConversationMappingRepository
+      -> ChatOrchestrator
+         -> ConversationService
+            -> LocalChatRepository
+            -> ConversationContextBuilder
+               -> ConversationContext
+                  -> current_message
+                  -> recent_history
+                  -> system_instructions
+                  -> style_instructions
+                  -> user_profile (empty for now)
+                  -> conversation_summary (empty for now)
+            -> ResponseEngine
+               -> GenerationProvider
+                  -> MockGenerationProvider
+                  -> LocalLLMGenerationProvider
+                  -> FallbackGenerationProvider
+   -> InstagramOutboundSender
+   -> ExternalTraceRepository
+
+The main architectural gain of this phase is that the system no longer asks each provider to invent its own conversational context. The core now builds that context explicitly, which makes the next phase predictable: adding real per-user memory without distorting the Instagram flow or the provider layer.
