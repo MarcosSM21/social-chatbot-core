@@ -1,0 +1,184 @@
+import hashlib
+import hmac
+import json
+
+import pytest
+from fastapi import HTTPException
+
+from app.api import main as api_main
+from app.channels.http_channel_result import HttpChannelResult
+from app.models.chat import ChatMessage, ChatTurn
+from app.models.outbound import OutboundChannelMessage
+from app.outbound.result import OutboundSendResult
+
+
+class FakeTraceRepository:
+    duplicate = False
+    records = []
+
+    def has_processed_provider_message(self, provider_message_id):
+        return self.duplicate
+
+    def save_records(self, record):
+        self.records.append(record)
+
+
+class FakeRequest:
+    def __init__(self, raw_body: bytes, headers: dict[str, str]) -> None:
+        self._raw_body = raw_body
+        self.headers = headers
+
+    async def body(self) -> bytes:
+        return self._raw_body
+
+
+def sign_payload(raw_body: bytes, app_secret: str) -> str:
+    digest = hmac.new(
+        app_secret.encode("utf-8"),
+        msg=raw_body,
+        digestmod=hashlib.sha256,
+    ).hexdigest()
+    return f"sha256={digest}"
+
+
+def build_payload(message_text: str = "hola", message_id: str = "mid-1") -> dict:
+    return {
+        "object": "instagram",
+        "entry": [
+            {
+                "id": "entry-1",
+                "messaging": [
+                    {
+                        "sender": {"id": "user-1"},
+                        "recipient": {"id": "business-1"},
+                        "timestamp": 123,
+                        "message": {"mid": message_id, "text": message_text},
+                    }
+                ],
+            }
+        ],
+    }
+
+
+def test_instagram_webhook_verification(monkeypatch) -> None:
+    monkeypatch.setattr(api_main.settings, "webhook_verify_token", "verify-token")
+
+    response = api_main.verify_instagram_webhook_messages(
+        hub_mode="subscribe",
+        hub_token="verify-token",
+        hub_challenge="challenge-ok",
+    )
+
+    assert response.body == b"challenge-ok"
+
+
+@pytest.mark.anyio
+async def test_instagram_webhook_rejects_invalid_signature(monkeypatch) -> None:
+    monkeypatch.setattr(api_main.settings, "instagram_app_secret", "secret")
+    raw_body = json.dumps(build_payload()).encode("utf-8")
+    request = FakeRequest(
+        raw_body=raw_body,
+        headers={"X-Hub-Signature-256": "sha256=invalid"},
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await api_main.receive_instagram_webhook_message(request)
+
+    assert exc_info.value.status_code == 403
+
+
+@pytest.mark.anyio
+async def test_instagram_webhook_accepts_valid_payload_without_network(monkeypatch) -> None:
+    FakeTraceRepository.duplicate = False
+    FakeTraceRepository.records = []
+    monkeypatch.setattr(api_main.settings, "instagram_app_secret", "secret")
+    monkeypatch.setattr(api_main, "_store_instagram_raw_payload", lambda raw_payload: None)
+    monkeypatch.setattr(api_main, "ExternalTraceRepository", FakeTraceRepository)
+
+    def fake_process_and_send(external_event):
+        turn = ChatTurn(
+            session_id="session-1",
+            user_message=ChatMessage(role="user", content=external_event.message_text),
+            assistant_message=ChatMessage(role="assistant", content="respuesta"),
+            session_metadata={
+                "memory_loaded": False,
+                "memory_updated": True,
+                "style_preset": "short_direct_calm",
+                "safety_validation_status": "passed",
+            },
+        )
+        outbound = OutboundChannelMessage(
+            platform=external_event.platform,
+            conversation_id=external_event.conversation_id,
+            user_id=external_event.user_id,
+            message_text="respuesta",
+        )
+        return (
+            HttpChannelResult(turn=turn, outbound_message=outbound),
+            OutboundSendResult(status="sent", detail="mock sent", external_message_id="out-1"),
+        )
+
+    monkeypatch.setattr(api_main, "_process_and_send_external_event", fake_process_and_send)
+
+    raw_body = json.dumps(build_payload()).encode("utf-8")
+    request = FakeRequest(
+        raw_body=raw_body,
+        headers={"X-Hub-Signature-256": sign_payload(raw_body, "secret")},
+    )
+    response = await api_main.receive_instagram_webhook_message(request)
+
+    assert response.status == "accepted"
+    assert len(FakeTraceRepository.records) == 1
+    assert FakeTraceRepository.records[0].outbound_status == "sent"
+
+
+@pytest.mark.anyio
+async def test_instagram_webhook_ignores_non_text_payload(monkeypatch) -> None:
+    FakeTraceRepository.duplicate = False
+    FakeTraceRepository.records = []
+    monkeypatch.setattr(api_main.settings, "instagram_app_secret", "secret")
+    monkeypatch.setattr(api_main, "_store_instagram_raw_payload", lambda raw_payload: None)
+    monkeypatch.setattr(api_main, "ExternalTraceRepository", FakeTraceRepository)
+
+    def fail_if_called(external_event):
+        raise AssertionError("Non-text payload should not be processed")
+
+    monkeypatch.setattr(api_main, "_process_and_send_external_event", fail_if_called)
+
+    payload = build_payload(message_id="mid-non-text")
+    payload["entry"][0]["messaging"][0]["message"].pop("text")
+    raw_body = json.dumps(payload).encode("utf-8")
+    request = FakeRequest(
+        raw_body=raw_body,
+        headers={"X-Hub-Signature-256": sign_payload(raw_body, "secret")},
+    )
+    response = await api_main.receive_instagram_webhook_message(request)
+
+    assert response.status == "ignored"
+    assert "No supported text-based DM events found" in response.detail
+    assert FakeTraceRepository.records == []
+
+
+@pytest.mark.anyio
+async def test_instagram_webhook_ignores_duplicate_provider_message(monkeypatch) -> None:
+    FakeTraceRepository.duplicate = True
+    FakeTraceRepository.records = []
+    monkeypatch.setattr(api_main.settings, "instagram_app_secret", "secret")
+    monkeypatch.setattr(api_main, "_store_instagram_raw_payload", lambda raw_payload: None)
+    monkeypatch.setattr(api_main, "ExternalTraceRepository", FakeTraceRepository)
+
+    def fail_if_called(external_event):
+        raise AssertionError("Duplicate message should not be processed")
+
+    monkeypatch.setattr(api_main, "_process_and_send_external_event", fail_if_called)
+
+    raw_body = json.dumps(build_payload()).encode("utf-8")
+    request = FakeRequest(
+        raw_body=raw_body,
+        headers={"X-Hub-Signature-256": sign_payload(raw_body, "secret")},
+    )
+    response = await api_main.receive_instagram_webhook_message(request)
+
+    assert response.status == "ignored"
+    assert response.detail == "Duplicate provider message ignored."
+    assert FakeTraceRepository.records == []
