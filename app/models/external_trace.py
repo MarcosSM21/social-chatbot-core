@@ -17,8 +17,19 @@ class ExternalTraceRecord:
     outbound_message_id: str | None = None
     memory_loaded: bool | None = None
     memory_updated: bool | None = None
+    memory_profile_status: str | None = None
+    memory_profile_detail: str | None = None
+    memory_profile_matched_rule: str | None = None
+    memory_summary_status: str | None = None
+    memory_summary_detail: str | None = None
+    memory_summary_matched_rule: str | None = None
     style_preset: str | None = None
     style_snapshot: dict[str, Any] | None = None
+    safety_policy_active: bool | None = None
+    safety_snapshot: dict[str, Any] | None = None
+    safety_validation_status: str | None = None
+    safety_validation_detail: str | None = None
+    safety_matched_rule: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -39,6 +50,17 @@ class ExternalTraceRecord:
             outbound_message_id=data.get("outbound_message_id"),
             memory_loaded=data.get("memory_loaded"),
             memory_updated =data.get("memory_updated"),
+            memory_profile_status=data.get("memory_profile_status"),
+            memory_profile_detail=data.get("memory_profile_detail"),
+            memory_profile_matched_rule=data.get("memory_profile_matched_rule"),
+            memory_summary_status=data.get("memory_summary_status"),
+            memory_summary_detail=data.get("memory_summary_detail"),
+            memory_summary_matched_rule=data.get("memory_summary_matched_rule"),
             style_preset=data.get("style_preset"),
             style_snapshot=data.get("style_snapshot"),
+            safety_policy_active= data.get("safety_policy_active"),
+            safety_snapshot=data.get("safety_snapshot"),
+            safety_validation_status=data.get("safety_validation_status"),
+            safety_validation_detail=data.get("safety_validation_detail"),
+            safety_matched_rule=data.get("safety_matched_rule"),
         )

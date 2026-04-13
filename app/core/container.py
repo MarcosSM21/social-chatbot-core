@@ -17,6 +17,8 @@ from app.outbound.mock_sender import MockOutboundSender
 from app.storage.external_trace_repository import ExternalTraceRepository
 from app.services.conversation_context_builder import ConversationContextBuilder
 from app.storage.user_memory_repository import UserMemoryRepository
+from app.services.assistant_response_safety_validator import AssistantResponseSafetyValidator
+from app.services.user_memory_safety_validator import UserMemorySafetyValidator
 
 
 def build_generation_provider(settings: Settings):
@@ -39,12 +41,16 @@ def build_chat_orchestrator(settings: Settings) -> ChatOrchestrator:
     chat_repository = LocalChatRepository()
     user_memory_repository = UserMemoryRepository()
     context_builder = ConversationContextBuilder(settings, user_memory_repository=user_memory_repository)
+    response_safety_validator = AssistantResponseSafetyValidator()
+    memory_safety_validator = UserMemorySafetyValidator()
 
     conversation_service = ConversationService(
         response_engine,
         chat_repository,
         context_builder,
-        user_memory_repository
+        user_memory_repository,
+        response_safety_validator,
+        memory_safety_validator,
     )
     return ChatOrchestrator(conversation_service)
 
