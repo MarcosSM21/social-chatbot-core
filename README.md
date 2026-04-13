@@ -295,7 +295,6 @@ Instagram DM flow
                   -> FallbackGenerationProvider
    -> InstagramOutboundSender
    -> ExternalTraceRepository
-
 The main architectural gain of this phase is that the system no longer asks each provider to invent its own conversational context. The core now builds that context explicitly, which makes the next phase predictable: adding real per-user memory without distorting the Instagram flow or the provider layer.
 
 
@@ -407,3 +406,61 @@ Conversational style flow
          -> style_snapshot
 
 The main gain of this phase is controllability. Style is no longer trapped inside ad hoc prompt text: it is now configurable, inspectable, and traceable across the full Instagram conversation flow.
+
+
+## Status (X)
+
+Phase 4 completed: conversational safety foundations.
+
+This phase introduces a first safety layer around the conversational core. The goal is not to build a complete moderation system yet, but to make safety explicit, visible, and active in the most important places: the context sent to the model, the response before it is sent to Instagram, and the memory before it is persisted.
+
+The project now provides:
+
+- explicit `ConversationSafetyPolicy` modeling
+- safety instructions injected into `ConversationContext`
+- provider prompt ordering with:
+  - system instructions
+  - safety instructions
+  - style instructions
+  - memory
+  - recent history
+  - current message
+- assistant response safety validation before persistence and outbound send
+- fallback safe responses for empty or sensitive assistant output
+- user memory safety validation before profile or summary persistence
+- safety traceability through:
+  - `safety_policy_active`
+  - `safety_snapshot`
+  - `safety_validation_status`
+  - `safety_validation_detail`
+  - `safety_matched_rule`
+  - `memory_profile_status`
+  - `memory_summary_status`
+
+## Implemented architecture
+
+Conversational safety flow
+   -> ConversationContextBuilder
+      -> ConversationSafetyPolicy.default()
+      -> safety_instructions
+   -> ConversationContext
+      -> safety_policy
+      -> safety_instructions
+   -> LocalLLMGenerationProvider
+      -> system prompt includes safety before style and memory
+   -> ConversationService
+      -> AssistantResponseSafetyValidator
+         -> passed | adjusted | blocked
+      -> UserMemorySafetyValidator
+         -> memory profile validation
+         -> memory summary validation
+      -> ChatTurn
+         -> session_metadata
+            -> safety snapshot
+            -> response safety result
+            -> memory safety result
+   -> ExternalTraceRepository
+      -> ExternalTraceRecord
+         -> safety and memory-safety fields
+
+The main gain of this phase is operational safety. The chatbot now has explicit guardrails against leaking secrets or internal instructions, and it avoids storing obvious sensitive data in long-term memory. This is still a lightweight safety layer, but it is now part of the core flow instead of being hidden inside a generic prompt.

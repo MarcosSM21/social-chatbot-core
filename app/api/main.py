@@ -406,8 +406,20 @@ def _save_processed_trace(
             outbound_message_id=send_result.external_message_id,
             memory_loaded=turn_metadata.get("memory_loaded"),
             memory_updated=turn_metadata.get("memory_updated"),
+            memory_profile_status=turn_metadata.get("memory_profile_status"),
+            memory_profile_detail=turn_metadata.get("memory_profile_detail"),
+            memory_profile_matched_rule=turn_metadata.get("memory_profile_matched_rule"),
+            memory_summary_status=turn_metadata.get("memory_summary_status"),
+            memory_summary_detail=turn_metadata.get("memory_summary_detail"),
+            memory_summary_matched_rule=turn_metadata.get("memory_summary_matched_rule"),
             style_preset=turn_metadata.get("style_preset"),
             style_snapshot=turn_metadata.get("style_snapshot"),
+            safety_policy_active=turn_metadata.get("safety_policy_active"),
+            safety_snapshot=turn_metadata.get("safety_snapshot"),
+            safety_validation_status=turn_metadata.get("safety_validation_status"),
+            safety_validation_detail=turn_metadata.get("safety_validation_detail"),
+            safety_matched_rule=turn_metadata.get("safety_matched_rule"),
+
         )
     )
 
