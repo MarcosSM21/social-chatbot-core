@@ -15,6 +15,9 @@ class ExternalTraceRecord:
     detail: str
     provider_message_id: str | None = None
     outbound_message_id: str | None = None
+    operational_status: str | None = None
+    operational_error_type: str | None = None
+    operational_detail: str | None = None
     memory_loaded: bool | None = None
     memory_updated: bool | None = None
     memory_profile_status: str | None = None
@@ -48,6 +51,9 @@ class ExternalTraceRecord:
             detail=data["detail"],
             provider_message_id=data.get("provider_message_id"),
             outbound_message_id=data.get("outbound_message_id"),
+            operational_status=data.get("operational_status"),
+            operational_error_type=data.get("operational_error_type"),
+            operational_detail=data.get("operational_detail"),
             memory_loaded=data.get("memory_loaded"),
             memory_updated =data.get("memory_updated"),
             memory_profile_status=data.get("memory_profile_status"),

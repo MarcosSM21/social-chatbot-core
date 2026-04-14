@@ -464,3 +464,62 @@ Conversational safety flow
          -> safety and memory-safety fields
 
 The main gain of this phase is operational safety. The chatbot now has explicit guardrails against leaking secrets or internal instructions, and it avoids storing obvious sensitive data in long-term memory. This is still a lightweight safety layer, but it is now part of the core flow instead of being hidden inside a generic prompt.
+
+
+## Status (XI)
+
+Phase 6 completed: operational robustness foundations.
+
+This phase improves the reliability of the Instagram DM flow before adding more intelligence to the chatbot. The goal was to make failures explicit, traceable, and safe enough for the system to keep running without blindly crashing on provider or sender errors.
+
+The project now provides:
+
+- webhook protection when the conversational core or generation provider fails
+- controlled handling of unexpected Instagram outbound sender exceptions
+- structured operational trace fields:
+  - `operational_status`
+  - `operational_error_type`
+  - `operational_detail`
+- direct tests for `InstagramOutboundSender` without real network calls
+- webhook tests for:
+  - valid signature
+  - invalid signature
+  - valid Instagram DM payload
+  - ignored non-text payload
+  - duplicate provider message
+  - generation provider failure
+  - unexpected outbound sender failure
+- regression coverage across parser, memory, safety, webhook and outbound sender
+
+## Implemented architecture
+
+Operationally robust Instagram flow
+
+   -> GET/POST /providers/instagram/webhook/messages
+   -> signature validation
+   -> raw payload persistence
+   -> InstagramPayloadParser
+      -> ProviderPayloadParseResult
+      -> ExternalMessageEvent
+   -> duplicate detection by provider_message_id
+   -> HttpChannelAdapter
+      -> ConversationService
+         -> ConversationContextBuilder
+         -> ResponseEngine
+         -> AssistantResponseSafetyValidator
+         -> UserMemorySafetyValidator
+   -> InstagramOutboundSender
+      -> OutboundSendResult
+         -> sent | failed
+   -> ExternalTraceRepository
+      -> ExternalTraceRecord
+         -> inbound_status
+         -> outbound_status
+         -> operational_status
+         -> operational_error_type
+         -> operational_detail
+         -> memory trace fields
+         -> style trace fields
+         -> safety trace fields
+
+At this stage, the bot is not only able to receive and reply to real Instagram DMs; it also has a first operational safety net. If generation fails, the webhook records the failure instead of retrying blindly. If outbound sending fails, the result is persisted as a failed send. This gives the next phase a safer foundation for evaluating and tuning the actual LLM behavior.
