@@ -10,6 +10,7 @@ from app.channels.http_channel_result import HttpChannelResult
 from app.models.chat import ChatMessage, ChatTurn
 from app.models.outbound import OutboundChannelMessage
 from app.outbound.result import OutboundSendResult
+from app.providers.exceptions import GenerationProviderError
 
 
 class FakeTraceRepository:
@@ -130,6 +131,9 @@ async def test_instagram_webhook_accepts_valid_payload_without_network(monkeypat
     assert response.status == "accepted"
     assert len(FakeTraceRepository.records) == 1
     assert FakeTraceRepository.records[0].outbound_status == "sent"
+    assert FakeTraceRepository.records[0].operational_status == "ok"
+    assert FakeTraceRepository.records[0].operational_error_type is None
+
 
 
 @pytest.mark.anyio
@@ -160,6 +164,66 @@ async def test_instagram_webhook_ignores_non_text_payload(monkeypatch) -> None:
 
 
 @pytest.mark.anyio
+async def test_instagram_webhook_traces_unexpected_sender_failure(monkeypatch) -> None:
+    FakeTraceRepository.duplicate = False
+    FakeTraceRepository.records = []
+    monkeypatch.setattr(api_main.settings, "instagram_app_secret", "secret")
+    monkeypatch.setattr(api_main, "_store_instagram_raw_payload", lambda raw_payload: None)
+    monkeypatch.setattr(api_main, "ExternalTraceRepository", FakeTraceRepository)
+
+    class FakeChannelAdapter:
+        def process_event(self, external_event):
+            turn = ChatTurn(
+                session_id="session-1",
+                user_message=ChatMessage(role="user", content=external_event.message_text),
+                assistant_message=ChatMessage(role="assistant", content="respuesta"),
+                session_metadata={
+                    "memory_loaded": False,
+                    "memory_updated": False,
+                    "style_preset": "short_direct_calm",
+                    "safety_validation_status": "passed",
+                },
+            )
+            outbound = OutboundChannelMessage(
+                platform=external_event.platform,
+                conversation_id=external_event.conversation_id,
+                user_id=external_event.user_id,
+                message_text="respuesta",
+            )
+            return HttpChannelResult(turn=turn, outbound_message=outbound)
+
+    class FailingInstagramSender:
+        def __init__(self, settings):
+            self.settings = settings
+
+        def send(self, outbound_message):
+            raise RuntimeError("sender exploded")
+
+    monkeypatch.setattr(api_main, "build_http_channel_adapter", lambda settings: FakeChannelAdapter())
+    monkeypatch.setattr(api_main, "InstagramOutboundSender", FailingInstagramSender)
+
+    raw_body = json.dumps(build_payload()).encode("utf-8")
+    request = FakeRequest(
+        raw_body=raw_body,
+        headers={"X-Hub-Signature-256": sign_payload(raw_body, "secret")},
+    )
+
+    response = await api_main.receive_instagram_webhook_message(request)
+
+    assert response.status == "accepted"
+    assert len(FakeTraceRepository.records) == 1
+
+    record = FakeTraceRepository.records[0]
+    assert record.inbound_status == "processed"
+    assert record.outbound_status == "failed"
+    assert "sender exploded" in record.detail
+    assert record.outbound_message_id is None
+    assert record.operational_status == "outbound_failed"
+    assert record.operational_error_type == "instagram_outbound_failed"
+    assert "sender exploded" in record.operational_detail
+
+
+@pytest.mark.anyio
 async def test_instagram_webhook_ignores_duplicate_provider_message(monkeypatch) -> None:
     FakeTraceRepository.duplicate = True
     FakeTraceRepository.records = []
@@ -182,3 +246,40 @@ async def test_instagram_webhook_ignores_duplicate_provider_message(monkeypatch)
     assert response.status == "ignored"
     assert response.detail == "Duplicate provider message ignored."
     assert FakeTraceRepository.records == []
+
+
+@pytest.mark.anyio
+async def test_instagram_webhook_traces_generation_failure_without_retrying(monkeypatch) -> None:
+    FakeTraceRepository.duplicate = False
+    FakeTraceRepository.records = []
+    monkeypatch.setattr(api_main.settings, "instagram_app_secret", "secret")
+    monkeypatch.setattr(api_main, "_store_instagram_raw_payload", lambda raw_payload: None)
+    monkeypatch.setattr(api_main, "ExternalTraceRepository", FakeTraceRepository)
+
+    def fail_process_and_send(external_event):
+        raise GenerationProviderError("provider down")
+
+    monkeypatch.setattr(api_main, "_process_and_send_external_event", fail_process_and_send)
+
+    raw_body = json.dumps(build_payload()).encode("utf-8")
+    request = FakeRequest(
+        raw_body=raw_body,
+        headers={"X-Hub-Signature-256": sign_payload(raw_body, "secret")},
+    )
+
+    response = await api_main.receive_instagram_webhook_message(request)
+
+    assert response.status == "accepted"
+    assert "processing failed" in response.detail
+    assert len(FakeTraceRepository.records) == 1
+
+    record = FakeTraceRepository.records[0]
+    assert record.inbound_status == "processing_failed"
+    assert record.outbound_status == "not_sent"
+    assert record.provider_message_id == "mid-1"
+    assert record.outgoing_message_text is None
+    assert record.operational_status == "processing_failed"
+    assert record.operational_error_type == "generation_provider_error"
+    assert "provider down" in record.operational_detail
+
+

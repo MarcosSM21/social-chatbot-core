@@ -270,8 +270,17 @@ async def receive_instagram_webhook_message(request: Request) -> WebhookEventRes
                 detail="Duplicate provider message ignored.",
             )
 
-        channel_result, send_result = _process_and_send_external_event(external_event)
+        try:
+            channel_result, send_result = _process_and_send_external_event(external_event)
+        except GenerationProviderError as exc:
+            _save_failed_processing_trace(trace_repository, external_event, str(exc))
+            return WebhookEventResponse(
+                status="accepted",
+                detail=f"Instagram message accepted, but processing failed before outbound send: {exc}",
+            )
+
         _save_processed_trace(trace_repository, external_event, channel_result, send_result)
+
 
 
     response_status = "accepted" if provider_parser_result.status == "captured" else "ignored"
@@ -370,14 +379,20 @@ def _build_external_events(
     return provider_parser_result, external_events
 
 
-def _process_and_send_external_event(
-    external_event: ExternalMessageEvent,
-) -> tuple[HttpChannelResult, OutboundSendResult]:
+def _process_and_send_external_event(external_event: ExternalMessageEvent) -> tuple[HttpChannelResult, OutboundSendResult]:
     channel_adapter = build_http_channel_adapter(settings)
     channel_result = channel_adapter.process_event(external_event)
 
     instagram_sender = InstagramOutboundSender(settings)
-    send_result = instagram_sender.send(channel_result.outbound_message)
+
+    try:
+        send_result = instagram_sender.send(channel_result.outbound_message)
+    except Exception as exc:
+        send_result = OutboundSendResult(
+            status = "failed",
+            detail = f"Instagram outbound sender raised an unexpected error: {exc}",
+            external_message_id = None,
+        )
 
     return channel_result, send_result
 
@@ -390,6 +405,11 @@ def _save_processed_trace(
 ) -> None:
     
     turn_metadata = channel_result.turn.session_metadata or {}
+
+    outbound_failed = send_result.status != "sent"
+    operational_status = "outbound_failed" if outbound_failed else "ok"
+    operational_error_type = "instagram_outbound_failed" if outbound_failed else None
+
 
     trace_repository.save_records(
         ExternalTraceRecord(
@@ -404,6 +424,9 @@ def _save_processed_trace(
             detail=f"Inbound Instagram message processed by internal core. Outbound result: {send_result.detail}",
             provider_message_id=external_event.message_id,
             outbound_message_id=send_result.external_message_id,
+            operational_status=operational_status,
+            operational_error_type=operational_error_type,
+            operational_detail=send_result.detail,
             memory_loaded=turn_metadata.get("memory_loaded"),
             memory_updated=turn_metadata.get("memory_updated"),
             memory_profile_status=turn_metadata.get("memory_profile_status"),
@@ -422,6 +445,32 @@ def _save_processed_trace(
 
         )
     )
+
+def _save_failed_processing_trace(
+    trace_repository: ExternalTraceRepository,
+    external_event: ExternalMessageEvent,
+    detail: str,
+) -> None:
+    trace_repository.save_records(
+        ExternalTraceRecord(
+            platform="instagram",
+            external_conversation_id=external_event.conversation_id,
+            external_user_id=external_event.user_id,
+            internal_session_id=None,
+            incoming_message_text=external_event.message_text,
+            outgoing_message_text=None,
+            inbound_status="processing_failed",
+            outbound_status="not_sent",
+            detail=f"Inbound Instagram message accepted, but processing failed before outbound send: {detail}",
+            provider_message_id=external_event.message_id,
+            outbound_message_id=None,
+            operational_status="processing_failed",
+            operational_error_type="generation_provider_error",
+            operational_detail=detail,
+
+        )
+    )
+
 
 
 def _validate_instagram_webhook_signature(raw_body: bytes, signature_header: str | None) -> None:
