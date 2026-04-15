@@ -20,6 +20,10 @@ class ConversationContext:
     style_instructions: str
     user_profile: str | None = None
     conversation_summary: str | None = None
+    stable_facts: list[str] | None = None
+    preferences: list[str] | None = None
+    relationship_notes: list[str] | None = None
+
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -34,4 +38,7 @@ class ConversationContext:
             "style_instructions": self.style_instructions,
             "user_profile": self.user_profile,
             "conversation_summary": self.conversation_summary,
+            "stable_facts": self.stable_facts,
+            "preferences": self.preferences,
+            "relationship_notes": self.relationship_notes,
         }

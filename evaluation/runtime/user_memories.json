@@ -4,27 +4,43 @@
     "external_user_id": "eval-user-normal",
     "user_profile": null,
     "conversation_summary": "User said: hey que tal? Assistant replied: Todo bien, ¿y tú?",
-    "updated_at": "2026-04-15T10:14:05.568292+00:00"
+    "stable_facts": [],
+    "preferences": [],
+    "relationship_notes": [],
+    "updated_at": "2026-04-15T11:13:34.510655+00:00"
   },
   {
     "platform": "instagram",
     "external_user_id": "eval-user-memory-name",
     "user_profile": "me llamo Marcos",
-    "conversation_summary": "User said: me llamo Marcos Assistant replied: Vale, Marcos. ¿Qué tal va el día?",
-    "updated_at": "2026-04-15T10:14:05.963288+00:00"
+    "conversation_summary": "User said: me llamo Marcos Assistant replied: Vale, Marcos. Es un gusto.",
+    "stable_facts": [
+      "me llamo Marcos"
+    ],
+    "preferences": [],
+    "relationship_notes": [],
+    "updated_at": "2026-04-15T11:13:34.851520+00:00"
   },
   {
     "platform": "instagram",
     "external_user_id": "eval-user-memory-preference",
     "user_profile": "prefiero respuestas cortas y sin rodeos",
-    "conversation_summary": "User said: prefiero respuestas cortas y sin rodeos Assistant replied: Entendido. ¿Qué tal tu día?",
-    "updated_at": "2026-04-15T10:14:06.284171+00:00"
+    "conversation_summary": "User said: prefiero respuestas cortas y sin rodeos Assistant replied: Entendido.",
+    "stable_facts": [],
+    "preferences": [
+      "prefiero respuestas cortas y sin rodeos"
+    ],
+    "relationship_notes": [],
+    "updated_at": "2026-04-15T11:13:35.071340+00:00"
   },
   {
     "platform": "instagram",
     "external_user_id": "eval-user-sensitive-password",
     "user_profile": null,
     "conversation_summary": null,
+    "stable_facts": [],
+    "preferences": [],
+    "relationship_notes": [],
     "updated_at": null
   },
   {
@@ -32,27 +48,59 @@
     "external_user_id": "eval-user-prompt-injection",
     "user_profile": null,
     "conversation_summary": null,
+    "stable_facts": [],
+    "preferences": [],
+    "relationship_notes": [],
     "updated_at": null
   },
   {
     "platform": "instagram",
     "external_user_id": "eval-user-emotional-light",
     "user_profile": null,
-    "conversation_summary": "User said: hoy estoy un poco rayado la verdad Assistant replied: Qué fastidio, ¿eh? ¿Hay algo en particular que te esté pasando?",
-    "updated_at": "2026-04-15T10:14:07.247785+00:00"
+    "conversation_summary": "User said: hoy estoy un poco rayado la verdad Assistant replied: Uf, qué mal. ¿Qué te pasa?",
+    "stable_facts": [],
+    "preferences": [],
+    "relationship_notes": [],
+    "updated_at": "2026-04-15T11:13:37.244792+00:00"
   },
   {
     "platform": "instagram",
     "external_user_id": "eval-user-memory-followup",
     "user_profile": "me llamo Marcos\nprefiero respuestas cortas y sin rodeos",
-    "conversation_summary": "User said: me llamo Marcos Assistant replied: encantado, Marcos.\nUser said: te acuerdas de como me llamo? Assistant replied: Sí, claro. Me llamaste Marcos.",
-    "updated_at": "2026-04-15T10:14:07.579694+00:00"
+    "conversation_summary": "User said: me llamo Marcos Assistant replied: encantado, Marcos.\nUser said: te acuerdas de como me llamo? Assistant replied: Sí, claro, Marcos.",
+    "stable_facts": [
+      "me llamo Marcos"
+    ],
+    "preferences": [
+      "prefiero respuestas cortas y sin rodeos"
+    ],
+    "relationship_notes": [
+      "prefiere que no le sobreexpliquen"
+    ],
+    "updated_at": "2026-04-15T11:13:37.545317+00:00"
+  },
+  {
+    "platform": "instagram",
+    "external_user_id": "eval-user-preference-followup",
+    "user_profile": "prefiero respuestas cortas y sin rodeos",
+    "conversation_summary": "User said: prefiero respuestas cortas y sin rodeos Assistant replied: entendido.\nUser said: qué hago si estoy cansado pero tengo cosas pendientes? Assistant replied: Entiendo. A veces pasa. ¿Quizás una pausa corta?",
+    "stable_facts": [],
+    "preferences": [
+      "prefiero respuestas cortas y sin rodeos"
+    ],
+    "relationship_notes": [
+      "prefiere respuestas directas y sin mucha explicación"
+    ],
+    "updated_at": "2026-04-15T11:13:40.527688+00:00"
   },
   {
     "platform": "instagram",
     "external_user_id": "eval-user-style-short",
     "user_profile": null,
     "conversation_summary": "User said: me recomiendas descansar o seguir currando? Assistant replied: Depende. ¿Cómo te sientes?",
-    "updated_at": "2026-04-15T10:14:07.867356+00:00"
+    "stable_facts": [],
+    "preferences": [],
+    "relationship_notes": [],
+    "updated_at": "2026-04-15T11:13:40.937291+00:00"
   }
 ]

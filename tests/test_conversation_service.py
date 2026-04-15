@@ -38,6 +38,7 @@ def test_conversation_service_updates_normal_memory(tmp_path) -> None:
     memory = user_memory_repository.get_or_create("instagram", "user-1")
 
     assert memory.user_profile == "me llamo Marcos"
+    assert memory.stable_facts == ["me llamo Marcos"]
     assert memory.conversation_summary is not None
     assert turn.session_metadata["memory_updated"] is True
     assert turn.session_metadata["memory_profile_status"] == "passed"
@@ -67,3 +68,57 @@ def test_conversation_service_does_not_store_sensitive_memory(tmp_path) -> None:
     assert turn.session_metadata["memory_updated"] is False
     assert turn.session_metadata["memory_summary_status"] == "blocked"
     assert turn.session_metadata["memory_summary_matched_rule"] == "password_es"
+
+
+def test_conversation_service_stores_preferences_separately(tmp_path) -> None:
+    service, user_memory_repository = build_service(tmp_path)
+
+    service.process_message(
+        message=ChatMessage(role="user", content="prefiero respuestas cortas"),
+        session_id="session-1",
+        platform="instagram",
+        external_user_id="user-1",
+    )
+    memory = user_memory_repository.get_or_create("instagram", "user-1")
+
+    assert memory.preferences == ["prefiero respuestas cortas"]
+    assert memory.stable_facts == []
+
+
+def test_conversation_service_does_not_duplicate_structured_memory(tmp_path) -> None:
+    service, user_memory_repository = build_service(tmp_path)
+
+    for _ in range(2):
+        service.process_message(
+            message=ChatMessage(role="user", content="me llamo Marcos"),
+            session_id="session-1",
+            platform="instagram",
+            external_user_id="user-1",
+        )
+
+    memory = user_memory_repository.get_or_create("instagram", "user-1")
+
+    assert memory.stable_facts == ["me llamo Marcos"]
+
+
+def test_conversation_service_loads_structured_memory_on_followup(tmp_path) -> None:
+    service, user_memory_repository = build_service(tmp_path)
+
+    service.process_message(
+        message=ChatMessage(role="user", content="me llamo Marcos"),
+        session_id="session-1",
+        platform="instagram",
+        external_user_id="user-1",
+    )
+
+    turn = service.process_message(
+        message=ChatMessage(role="user", content="te acuerdas de mi nombre?"),
+        session_id="session-1",
+        platform="instagram",
+        external_user_id="user-1",
+    )
+
+    memory = user_memory_repository.get_or_create("instagram", "user-1")
+
+    assert memory.stable_facts == ["me llamo Marcos"]
+    assert turn.session_metadata["memory_loaded"] is True

@@ -38,7 +38,11 @@ class ConversationContextBuilder:
                 style_rules=style_rules
             ),
             user_profile=user_memory.user_profile,
-            conversation_summary=user_memory.conversation_summary,
+            conversation_summary=user_memory.conversation_summary,            
+            stable_facts=user_memory.stable_facts,
+            preferences=user_memory.preferences,
+            relationship_notes=user_memory.relationship_notes,
+
         )
 
     def _build_system_instructions(self) -> str:
