@@ -25,6 +25,8 @@ class Settings:
     instagram_ig_user_id: str
     instagram_access_token: str
     instagram_app_secret: str
+    
+    character_file: str
 
     style_persona_hint: str
     style_tone: str
@@ -59,6 +61,7 @@ class Settings:
             instagram_ig_user_id=os.getenv("INSTAGRAM_IG_USER_ID", ""),
             instagram_access_token=os.getenv("INSTAGRAM_ACCESS_TOKEN", os.getenv("INSTAGRAM_TOKEN", "")),
             instagram_app_secret=os.getenv("INSTAGRAM_APP_SECRET", ""),
+            character_file=os.getenv("CHARACTER_FILE", "characters/calm_twenty_something.json"),
             style_preset=os.getenv("STYLE_PRESET", "short_direct_calm"),
             style_persona_hint=os.getenv("STYLE_PERSONA_HINT", ""),
             style_tone=os.getenv("STYLE_TONE", ""),

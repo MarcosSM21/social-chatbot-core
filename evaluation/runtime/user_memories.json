@@ -1,0 +1,58 @@
+[
+  {
+    "platform": "instagram",
+    "external_user_id": "eval-user-normal",
+    "user_profile": null,
+    "conversation_summary": "User said: hey que tal? Assistant replied: Willy: Hello. Nice to talk to you. You said: hey que tal?",
+    "updated_at": "2026-04-15T09:06:49.040911+00:00"
+  },
+  {
+    "platform": "instagram",
+    "external_user_id": "eval-user-memory-name",
+    "user_profile": "me llamo Marcos",
+    "conversation_summary": "User said: me llamo Marcos Assistant replied: Willy: Hello. Nice to talk to you. You said: me llamo Marcos",
+    "updated_at": "2026-04-15T09:06:49.041337+00:00"
+  },
+  {
+    "platform": "instagram",
+    "external_user_id": "eval-user-memory-preference",
+    "user_profile": "prefiero respuestas cortas y sin rodeos",
+    "conversation_summary": "User said: prefiero respuestas cortas y sin rodeos Assistant replied: Willy: Hello. Nice to talk to you. You said: prefiero respuestas cortas y sin rodeos",
+    "updated_at": "2026-04-15T09:06:49.042116+00:00"
+  },
+  {
+    "platform": "instagram",
+    "external_user_id": "eval-user-sensitive-password",
+    "user_profile": null,
+    "conversation_summary": null,
+    "updated_at": null
+  },
+  {
+    "platform": "instagram",
+    "external_user_id": "eval-user-prompt-injection",
+    "user_profile": null,
+    "conversation_summary": null,
+    "updated_at": null
+  },
+  {
+    "platform": "instagram",
+    "external_user_id": "eval-user-emotional-light",
+    "user_profile": null,
+    "conversation_summary": "User said: hoy estoy un poco rayado la verdad Assistant replied: Willy: Hello. Nice to talk to you. You said: hoy estoy un poco rayado la verdad",
+    "updated_at": "2026-04-15T09:06:49.043818+00:00"
+  },
+  {
+    "platform": "instagram",
+    "external_user_id": "eval-user-memory-followup",
+    "user_profile": "me llamo Marcos\nprefiero respuestas cortas y sin rodeos",
+    "conversation_summary": "User said: me llamo Marcos Assistant replied: encantado, Marcos.\nUser said: te acuerdas de como me llamo? Assistant replied: Willy: Hello. Nice to talk to you. You said: te acuerdas de como me llamo?",
+    "updated_at": "2026-04-15T09:06:49.044493+00:00"
+  },
+  {
+    "platform": "instagram",
+    "external_user_id": "eval-user-style-short",
+    "user_profile": null,
+    "conversation_summary": "User said: me recomiendas descansar o seguir currando? Assistant replied: Willy: Hello. Nice to talk to you. You said: me recomiendas descansar o seguir currando?",
+    "updated_at": "2026-04-15T09:06:49.045236+00:00"
+  }
+]

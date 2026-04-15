@@ -52,6 +52,7 @@ class LocalLLMGenerationProvider:
         messages = [
             {"role": "system", "content": context.system_instructions},
             {"role": "system", "content": context.safety_instructions},
+            {"role": "system", "content": context.character_instructions},
             {"role": "system", "content": context.style_instructions},
             ]
         

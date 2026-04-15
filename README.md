@@ -523,3 +523,81 @@ Operationally robust Instagram flow
          -> safety trace fields
 
 At this stage, the bot is not only able to receive and reply to real Instagram DMs; it also has a first operational safety net. If generation fails, the webhook records the failure instead of retrying blindly. If outbound sending fails, the result is persisted as a failed send. This gives the next phase a safer foundation for evaluating and tuning the actual LLM behavior.
+
+
+## Status (XII)
+
+Phase 7 completed: conversational evaluation and configurable character layer.
+
+This phase shifts the project from "the bot replies" to "we can evaluate how the bot replies". Instead of adding many rigid style checks too early, the project now has a lightweight evaluation loop and a first explicit character layer. This makes it possible to compare providers, prompts, and fictional personalities without changing the core Instagram flow.
+
+The project now provides:
+
+- an evaluation dataset for Instagram-style DM scenarios
+- local evaluation runtime storage isolated from real `data/*.json` files
+- JSON evaluation reports with per-case results
+- Markdown evaluation reports for human review
+- basic automatic checks for:
+  - empty responses
+  - overly long responses
+  - excessive exclamation marks
+  - forbidden sensitive fragments
+  - expected memory loading
+  - expected stable memory storage
+- explicit `ConversationCharacter` modeling
+- character presets loaded from JSON files in `characters/`
+- configurable character selection through `CHARACTER_FILE`
+- character instructions injected into the LLM prompt
+- character traceability through:
+  - `character_id`
+  - `character_name`
+  - `character_snapshot`
+- evaluation reports that show both provider and character
+
+## Implemented architecture
+
+Evaluation flow
+   -> evaluation/cases/instagram_dm_cases.json
+   -> evaluation/run_evaluation.py
+   -> temporary evaluation runtime storage
+      -> evaluation/runtime/chat_history.json
+      -> evaluation/runtime/user_memories.json
+   -> ConversationService
+      -> ConversationContextBuilder
+         -> ConversationCharacter
+         -> ConversationStyle
+         -> ConversationSafetyPolicy
+         -> UserMemory
+      -> ResponseEngine
+         -> GenerationProvider
+            -> MockGenerationProvider
+            -> LocalLLMGenerationProvider
+            -> FallbackGenerationProvider
+   -> evaluation checks
+   -> evaluation/reports/*.json
+   -> evaluation/reports/*.md
+
+Character-aware conversational flow
+   -> Settings
+      -> CHARACTER_FILE
+   -> characters/*.json
+      -> ConversationCharacter
+   -> ConversationContextBuilder
+      -> character_instructions
+   -> ConversationContext
+      -> character
+      -> character_instructions
+      -> safety_instructions
+      -> style_instructions
+      -> memory
+      -> recent history
+   -> LocalLLMGenerationProvider
+      -> system prompt includes safety, character, style, memory and history
+   -> ConversationService
+      -> ChatTurn
+         -> session_metadata
+            -> character_id
+            -> character_name
+            -> character_snapshot
+
+The main gain of this phase is controllability over the bot's identity. The chatbot no longer depends only on generic style knobs such as tone or response length. It can now be shaped as a fictional character with a specific identity, backstory, speaking pattern, relationship to the user, and boundaries. The evaluation runner gives a practical way to compare how different providers and characters behave before exposing changes to real Instagram users.
