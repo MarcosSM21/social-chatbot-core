@@ -601,3 +601,82 @@ Character-aware conversational flow
             -> character_snapshot
 
 The main gain of this phase is controllability over the bot's identity. The chatbot no longer depends only on generic style knobs such as tone or response length. It can now be shaped as a fictional character with a specific identity, backstory, speaking pattern, relationship to the user, and boundaries. The evaluation runner gives a practical way to compare how different providers and characters behave before exposing changes to real Instagram users.
+
+
+## Status (XIII)
+
+Phase 8 completed: character tuning and prompt crafting.
+
+This phase focuses on making the chatbot feel less like a generic assistant and more like a coherent fictional character. The work in this phase was intentionally practical: compare character variants, observe real model behavior, reduce prompt patterns that caused copy-paste responses, and make the evaluation runner more honest about whether Ollama or fallback was actually being used.
+
+The project now provides:
+
+- a second character preset:
+  - `characters/quiet_close_friend.json`
+- expanded character fields for tuning:
+  - `voice_guidelines`
+  - `response_principles`
+  - `avoid_phrases`
+  - `good_response_examples`
+  - `bad_response_examples`
+- a clearer distinction between:
+  - character identity
+  - speaking voice
+  - response principles
+  - safety boundaries
+  - examples kept as human tuning references
+- reduced reliance on full example responses inside the active prompt
+- stronger guidance against:
+  - copying examples verbatim
+  - answering Spanish messages in English
+  - repeating sensitive values
+  - turning `.env` or prompt-injection attempts into unrelated password advice
+  - overexplaining simple questions
+- evaluation reports that expose whether provider fallback was enabled
+- evaluation runs that can compare character files with:
+  - `CHARACTER_FILE=...`
+  - `EVALUATION_GENERATION_PROVIDER=ollama`
+  - fallback disabled by default for Ollama evaluation
+
+## Implemented architecture
+
+Current LLM prompt assembly
+   -> ConversationContextBuilder
+      -> system_instructions
+      -> safety_instructions
+      -> character_instructions
+      -> style_instructions
+      -> user_profile
+      -> conversation_summary
+      -> recent history
+      -> current user message
+   -> LocalLLMGenerationProvider
+      -> Ollama `/api/chat`
+      -> ordered chat messages
+
+Character tuning flow
+   -> characters/*.json
+      -> ConversationCharacter
+         -> identity
+         -> backstory
+         -> personality_traits
+         -> speaking_style
+         -> voice_guidelines
+         -> response_principles
+         -> boundaries
+         -> avoid_phrases
+   -> ConversationContextBuilder
+      -> compact character instructions
+   -> evaluation/run_evaluation.py
+      -> JSON report
+      -> Markdown report
+      -> provider fallback visibility
+
+The main gain of this phase is practical control over voice. We learned that complete good-response examples can become too strong and cause the model to copy or overgeneralize them. More abstract `voice_guidelines` and response principles work better as steering signals. At this point, `quiet_close_friend` is the stronger base character, while `calm_twenty_something` remains useful as a comparison preset.
+
+Design note: character and style currently coexist. The active prompt sends both `character_instructions` and `style_instructions` as system messages on every LLM call. This is useful while exploring, but future cleanup may simplify style into more generic global constraints or move more style control directly into each character file. The likely direction is:
+
+- keep safety global and non-negotiable
+- keep memory separate per user
+- keep character as the main identity and voice layer
+- make style either very generic or character-specific

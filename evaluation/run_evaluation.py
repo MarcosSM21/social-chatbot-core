@@ -254,6 +254,7 @@ def write_report(settings: Settings, results: list[dict]) -> Path:
     report = {
         "generated_at": datetime.now(UTC).isoformat(),
         "generation_provider": settings.generation_provider,
+        "provider_fallback_enabled": settings.enable_provider_fallback,
         "character": character_summary,
         "case_count": len(results),
         "passed_cases": passed_cases,
@@ -280,6 +281,7 @@ def write_markdown_report(json_report_path: Path, settings: Settings, results: l
         "",
         f"- Generated at: {datetime.now(UTC).isoformat()}",
         f"- Provider: `{settings.generation_provider}`",
+        f"- Provider fallback enabled: `{settings.enable_provider_fallback}`",
         f"- Character: `{character_name}` (`{character_id}`)",
         f"- Total cases: {len(results)}",
         f"- Passed cases: {passed_cases}",
@@ -346,6 +348,14 @@ def main() -> None:
         settings.generation_provider,
     )
 
+    evaluation_fallback = os.getenv("EVALUATION_ENABLE_PROVIDER_FALLBACK")
+
+    if evaluation_fallback is not None:
+        settings.enable_provider_fallback = evaluation_fallback.lower() == "true"
+    elif settings.generation_provider == "ollama":
+        settings.enable_provider_fallback = False
+
+
     service, user_memory_repository = build_evaluation_service(settings)
 
     cases = load_cases()
@@ -357,6 +367,7 @@ def main() -> None:
     
     print(f"Evaluated {len(results)} case(s).")
     print(f"Provider: {settings.generation_provider}")
+    print(f"Provider fallback enabled: {settings.enable_provider_fallback}")
     character_summary = extract_character_summary(results)
     print(
         f"Character: {character_summary.get('character_name')} "

@@ -3,22 +3,22 @@
     "platform": "instagram",
     "external_user_id": "eval-user-normal",
     "user_profile": null,
-    "conversation_summary": "User said: hey que tal? Assistant replied: Willy: Hello. Nice to talk to you. You said: hey que tal?",
-    "updated_at": "2026-04-15T09:06:49.040911+00:00"
+    "conversation_summary": "User said: hey que tal? Assistant replied: Todo bien, ¿y tú?",
+    "updated_at": "2026-04-15T10:14:05.568292+00:00"
   },
   {
     "platform": "instagram",
     "external_user_id": "eval-user-memory-name",
     "user_profile": "me llamo Marcos",
-    "conversation_summary": "User said: me llamo Marcos Assistant replied: Willy: Hello. Nice to talk to you. You said: me llamo Marcos",
-    "updated_at": "2026-04-15T09:06:49.041337+00:00"
+    "conversation_summary": "User said: me llamo Marcos Assistant replied: Vale, Marcos. ¿Qué tal va el día?",
+    "updated_at": "2026-04-15T10:14:05.963288+00:00"
   },
   {
     "platform": "instagram",
     "external_user_id": "eval-user-memory-preference",
     "user_profile": "prefiero respuestas cortas y sin rodeos",
-    "conversation_summary": "User said: prefiero respuestas cortas y sin rodeos Assistant replied: Willy: Hello. Nice to talk to you. You said: prefiero respuestas cortas y sin rodeos",
-    "updated_at": "2026-04-15T09:06:49.042116+00:00"
+    "conversation_summary": "User said: prefiero respuestas cortas y sin rodeos Assistant replied: Entendido. ¿Qué tal tu día?",
+    "updated_at": "2026-04-15T10:14:06.284171+00:00"
   },
   {
     "platform": "instagram",
@@ -38,21 +38,21 @@
     "platform": "instagram",
     "external_user_id": "eval-user-emotional-light",
     "user_profile": null,
-    "conversation_summary": "User said: hoy estoy un poco rayado la verdad Assistant replied: Willy: Hello. Nice to talk to you. You said: hoy estoy un poco rayado la verdad",
-    "updated_at": "2026-04-15T09:06:49.043818+00:00"
+    "conversation_summary": "User said: hoy estoy un poco rayado la verdad Assistant replied: Qué fastidio, ¿eh? ¿Hay algo en particular que te esté pasando?",
+    "updated_at": "2026-04-15T10:14:07.247785+00:00"
   },
   {
     "platform": "instagram",
     "external_user_id": "eval-user-memory-followup",
     "user_profile": "me llamo Marcos\nprefiero respuestas cortas y sin rodeos",
-    "conversation_summary": "User said: me llamo Marcos Assistant replied: encantado, Marcos.\nUser said: te acuerdas de como me llamo? Assistant replied: Willy: Hello. Nice to talk to you. You said: te acuerdas de como me llamo?",
-    "updated_at": "2026-04-15T09:06:49.044493+00:00"
+    "conversation_summary": "User said: me llamo Marcos Assistant replied: encantado, Marcos.\nUser said: te acuerdas de como me llamo? Assistant replied: Sí, claro. Me llamaste Marcos.",
+    "updated_at": "2026-04-15T10:14:07.579694+00:00"
   },
   {
     "platform": "instagram",
     "external_user_id": "eval-user-style-short",
     "user_profile": null,
-    "conversation_summary": "User said: me recomiendas descansar o seguir currando? Assistant replied: Willy: Hello. Nice to talk to you. You said: me recomiendas descansar o seguir currando?",
-    "updated_at": "2026-04-15T09:06:49.045236+00:00"
+    "conversation_summary": "User said: me recomiendas descansar o seguir currando? Assistant replied: Depende. ¿Cómo te sientes?",
+    "updated_at": "2026-04-15T10:14:07.867356+00:00"
   }
 ]
