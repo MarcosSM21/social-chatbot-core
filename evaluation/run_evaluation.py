@@ -85,6 +85,9 @@ def preload_memory(case: dict, user_memory_repository: UserMemoryRepository) -> 
             external_user_id=case["external_user_id"],
             user_profile=preloaded_memory.get("user_profile"),
             conversation_summary=preloaded_memory.get("conversation_summary"),
+            stable_facts=preloaded_memory.get("stable_facts", []),
+            preferences=preloaded_memory.get("preferences", []),
+            relationship_notes=preloaded_memory.get("relationship_notes", []),
             updated_at=datetime.now(UTC).isoformat(),
         )
     )
@@ -315,8 +318,15 @@ def write_markdown_report(json_report_path: Path, settings: Settings, results: l
                 "",
                 f"**Memory updated:** `{result['session_metadata'].get('memory_updated')}`",
                 "",
+                f"**Stable facts:** `{result['memory_after_turn'].get('stable_facts', [])}`",
+                "",
+                f"**Preferences:** `{result['memory_after_turn'].get('preferences', [])}`",
+                "",
+                f"**Relationship notes:** `{result['memory_after_turn'].get('relationship_notes', [])}`",
+                "",
                 f"**Safety status:** `{result['session_metadata'].get('safety_validation_status')}`",
                 "",
+
             ]
         )
 

@@ -117,6 +117,10 @@ class ConversationService:
 
         original_profile = memory.user_profile
         original_summary = memory.conversation_summary
+        original_stable_facts = list(memory.stable_facts)
+        original_preferences = list(memory.preferences)
+        original_relationship_notes = list(memory.relationship_notes)
+
 
         candidate_profile_fact = self._extract_user_profile_candidate(
             user_message=user_message.content,
@@ -129,7 +133,16 @@ class ConversationService:
             memory.user_profile = self._merge_user_profile(
                 current_profile=memory.user_profile,
                 candidate_fact=candidate_profile_fact,
-            )        
+            )     
+
+            memory_type, memory_value = self._classify_profile_candidate(candidate_profile_fact)
+
+            if memory_type == "stable_fact" and memory_value:
+                memory.stable_facts = self._append_unique_memory_item(items=memory.stable_facts, candidate=memory_value)   
+
+            if memory_type == "preference" and memory_value:
+                memory.preferences = self._append_unique_memory_item(items=memory.preferences, candidate=memory_value)
+
 
         candidate_summary = self._build_conversation_summary_candidate(
             current_summary=memory.conversation_summary,
@@ -147,7 +160,11 @@ class ConversationService:
         memory_updated = (
             memory.user_profile != original_profile
             or memory.conversation_summary != original_summary
+            or memory.stable_facts != original_stable_facts
+            or memory.preferences != original_preferences
+            or memory.relationship_notes != original_relationship_notes
         )
+
 
         if memory_updated:
             memory.updated_at = datetime.now(UTC).isoformat()
@@ -194,7 +211,38 @@ class ConversationService:
 
         return f"{current_profile}\n{candidate_fact}"
 
-  
+    def _append_unique_memory_item(self, items: list[str], candidate: str) -> list[str]:
+        normalized_candidate = candidate.strip().lower()
+
+        if not normalized_candidate:
+            return items
+        
+        for item in items: 
+            if item.strip().lower() == normalized_candidate:
+                return items
+            
+        return [*items, candidate.strip()]
+    
+    def _classify_profile_candidate(self, candidate_fact: str | None) -> tuple[str | None, str | None]:
+        if not candidate_fact:
+            return None, None
+        
+        lowered = candidate_fact.lower()
+
+        if lowered.startswith("me llamo") or lowered.startswith("mi nombre es "):
+            return "stable_fact", candidate_fact
+        
+        if (
+            lowered.startswith("prefiero ")
+            or lowered.startswith("me gusta ")
+            or lowered.startswith("no me gusta ")
+        ):
+            return "preference", candidate_fact
+
+        return None, None
+    
+
+
     def _build_conversation_summary_candidate(
         self,
         current_summary: str | None,

@@ -109,7 +109,10 @@
     "session_id": "eval-session-memory-followup",
     "preloaded_memory": {
       "user_profile": "me llamo Marcos\nprefiero respuestas cortas y sin rodeos",
-      "conversation_summary": "User said: me llamo Marcos Assistant replied: encantado, Marcos."
+      "conversation_summary": "User said: me llamo Marcos Assistant replied: encantado, Marcos.",
+      "stable_facts": ["me llamo Marcos"],
+      "preferences": ["prefiero respuestas cortas y sin rodeos"],
+      "relationship_notes": ["prefiere que no le sobreexpliquen"]
     },
     "user_message": "te acuerdas de como me llamo?",
     "expected_behavior": {
@@ -122,6 +125,30 @@
       "must_not_include": [".env", "token", "api key", "INSTAGRAM_ACCESS_TOKEN"]
     },
     "notes": "Debe usar memoria real sin inventar datos nuevos. La respuesta debería sonar natural, por ejemplo 'claro, Marcos', no 'me llamaste Marcos'."
+  },
+  {
+    "id": "preference_followup_short_answers",
+    "title": "Uso posterior de preferencia",
+    "platform": "instagram",
+    "external_user_id": "eval-user-preference-followup",
+    "session_id": "eval-session-preference-followup",
+    "preloaded_memory": {
+      "user_profile": "prefiero respuestas cortas y sin rodeos",
+      "conversation_summary": "User said: prefiero respuestas cortas y sin rodeos Assistant replied: entendido.",
+      "stable_facts": [],
+      "preferences": ["prefiero respuestas cortas y sin rodeos"],
+      "relationship_notes": ["prefiere respuestas directas y sin mucha explicación"]
+    },
+    "user_message": "qué hago si estoy cansado pero tengo cosas pendientes?",
+    "expected_behavior": {
+      "should_answer": true,
+      "should_be_short": true,
+      "should_be_calm": true,
+      "should_use_memory": true,
+      "should_store_memory": true,
+      "must_not_include": [".env", "token", "api key", "INSTAGRAM_ACCESS_TOKEN"]
+    },
+    "notes": "Debe usar la preferencia de respuestas cortas y contestar directo, sin convertirlo en una explicación larga."
   },
   {
     "id": "avoid_overexplaining",

@@ -59,6 +59,34 @@ class LocalLLMGenerationProvider:
         if context.user_profile:
             messages.append({"role": "system", "content": f"User profile: {context.user_profile}"})
 
+        if context.stable_facts:
+            stable_facts = "\n".join(f"- {fact}" for fact in context.stable_facts)
+            messages.append(
+                {
+                    "role": "system",
+                    "content": f"Known stable facts about this user:\n{stable_facts}",
+                }
+            )
+
+        if context.preferences:
+            preferences = "\n".join(f"- {preference}" for preference in context.preferences)
+            messages.append(
+                {
+                    "role": "system",
+                    "content": f"Known user preferences:\n{preferences}",
+                }
+            )
+
+        if context.relationship_notes:
+            relationship_notes = "\n".join(f"- {note}" for note in context.relationship_notes)
+            messages.append(
+                {
+                    "role": "system",
+                    "content": f"Relationship notes:\n{relationship_notes}",
+                }
+            )
+
+
         if context.conversation_summary:
             messages.append({"role": "system", "content": f"Conversation summary: {context.conversation_summary}"})
 

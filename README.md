@@ -680,3 +680,86 @@ Design note: character and style currently coexist. The active prompt sends both
 - keep memory separate per user
 - keep character as the main identity and voice layer
 - make style either very generic or character-specific
+
+
+## Status (XIV)
+
+Phase 9 completed: structured memory and personalization foundations.
+
+This phase improves memory quality without introducing a database or complex LLM-based summarization. The goal was to stop treating all memory as one loose text blob and start separating what the bot knows about a user into clearer categories. This makes future personalization safer, easier to inspect, and easier to pass to the LLM in a useful way.
+
+The project now provides:
+
+- backward-compatible `UserMemory` expansion
+- structured memory fields:
+  - `stable_facts`
+  - `preferences`
+  - `relationship_notes`
+- continued support for legacy fields:
+  - `user_profile`
+  - `conversation_summary`
+- classification of simple user memory:
+  - names and identity-like facts -> `stable_facts`
+  - preferences and likes/dislikes -> `preferences`
+- duplicate prevention for structured memory items
+- safety validation before structured memory is persisted
+- structured memory injected into `ConversationContext`
+- structured memory passed to the LLM prompt as explicit sections:
+  - known stable facts
+  - known user preferences
+  - relationship notes
+- evaluation support for preloaded structured memory
+- Markdown reports that display:
+  - stable facts
+  - preferences
+  - relationship notes
+- evaluation cases for:
+  - remembering the user's name
+  - applying the user's preference for short/direct answers
+
+## Implemented architecture
+
+Structured memory persistence
+   -> UserMemory
+      -> user_profile (legacy)
+      -> conversation_summary (legacy)
+      -> stable_facts
+      -> preferences
+      -> relationship_notes
+   -> UserMemoryRepository
+      -> JSON persistence
+      -> backward-compatible load/save
+
+Structured memory update flow
+   -> ConversationService
+      -> _extract_user_profile_candidate
+      -> UserMemorySafetyValidator
+      -> _classify_profile_candidate
+         -> stable_fact
+         -> preference
+      -> _append_unique_memory_item
+      -> UserMemoryRepository.save
+      -> ChatTurn.session_metadata
+         -> memory_loaded
+         -> memory_updated
+         -> memory safety fields
+
+Structured memory prompt flow
+   -> ConversationContextBuilder
+      -> UserMemoryRepository.get_or_create
+      -> ConversationContext
+         -> user_profile
+         -> conversation_summary
+         -> stable_facts
+         -> preferences
+         -> relationship_notes
+   -> LocalLLMGenerationProvider
+      -> User profile
+      -> Known stable facts about this user
+      -> Known user preferences
+      -> Relationship notes
+      -> Conversation summary
+      -> recent history
+      -> current user message
+
+The main gain of this phase is cleaner personalization. The bot can now distinguish between a stable fact like "me llamo Marcos" and a preference like "prefiero respuestas cortas y sin rodeos". This gives the character a better memory substrate while keeping the system simple and inspectable. The next natural step is memory control: being able to inspect, reset, clean, and eventually manage memory deliberately before moving to more serious production storage.
