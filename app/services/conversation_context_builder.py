@@ -1,9 +1,13 @@
+import json
+
 from app.core.settings import Settings
 from app.models.chat import ChatMessage, ChatTurn
 from app.models.conversation_safety import ConversationSafetyPolicy
 from app.models.conversation_context import ConversationContext
 from app.storage.user_memory_repository import UserMemoryRepository
 from app.models.conversation_style import ConversationStyle
+from app.models.conversation_character import ConversationCharacter
+
 
 
 class ConversationContextBuilder:
@@ -18,6 +22,7 @@ class ConversationContextBuilder:
         style = self._build_conversation_style()
         style_rules = self._build_style_rules()
         safety_policy = self._build_safety_policy()
+        character = self._build_character()
 
         return ConversationContext(
             current_message=message,
@@ -25,6 +30,8 @@ class ConversationContextBuilder:
             system_instructions=self._build_system_instructions(),
             safety_policy=safety_policy,
             safety_instructions=self._build_safety_instructions(safety_policy),
+            character=character,
+            character_instructions=self._build_character_instructions(character),
             style=style,
             style_instructions=self._build_style_instructions(
                 style=style,
@@ -93,3 +100,27 @@ class ConversationContextBuilder:
             f"Empathy: {style.empathy}. "
             f"Style rules: {rules_text}"
         )
+    
+    def _build_character(self) -> ConversationCharacter:
+        try:
+            return ConversationCharacter.from_json_file(self.settings.character_file)
+        except (FileNotFoundError, json.JSONDecodeError, KeyError):
+            return ConversationCharacter.default()
+
+    def _build_character_instructions(self, character: ConversationCharacter) -> str:
+        traits = "; ".join(character.personality_traits)
+        speaking_style = " ".join(character.speaking_style)
+        boundaries = " ".join(character.boundaries)
+        examples = "; ".join(character.example_phrases)
+
+        return (
+            f"Character name: {character.display_name}. "
+            f"Character identity: {character.core_identity} "
+            f"Backstory: {character.backstory} "
+            f"Personality traits: {traits}. "
+            f"Relationship to user: {character.relationship_to_user} "
+            f"Speaking style: {speaking_style} "
+            f"Character boundaries: {boundaries} "
+            f"Example phrases: {examples}"
+        )
+

@@ -45,6 +45,10 @@ def test_conversation_service_updates_normal_memory(tmp_path) -> None:
     assert turn.session_metadata["style_preset"]
     assert turn.session_metadata["safety_policy_active"] is True
     assert turn.session_metadata["safety_validation_status"] == "passed"
+    assert turn.session_metadata["character_id"]
+    assert turn.session_metadata["character_name"]
+    assert turn.session_metadata["character_snapshot"]
+
 
 
 def test_conversation_service_does_not_store_sensitive_memory(tmp_path) -> None:
