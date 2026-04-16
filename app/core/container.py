@@ -19,6 +19,7 @@ from app.services.conversation_context_builder import ConversationContextBuilder
 from app.storage.user_memory_repository import UserMemoryRepository
 from app.services.assistant_response_safety_validator import AssistantResponseSafetyValidator
 from app.services.user_memory_safety_validator import UserMemorySafetyValidator
+from app.storage.sqlite_user_memory_repository import SQLiteUserMemoryRepository
 
 
 def build_generation_provider(settings: Settings):
@@ -39,7 +40,7 @@ def build_chat_orchestrator(settings: Settings) -> ChatOrchestrator:
     generation_provider = build_generation_provider(settings)
     response_engine = ResponseEngine(generation_provider)
     chat_repository = LocalChatRepository()
-    user_memory_repository = UserMemoryRepository()
+    user_memory_repository = build_user_memory_repository(settings)
     context_builder = ConversationContextBuilder(settings, user_memory_repository=user_memory_repository)
     response_safety_validator = AssistantResponseSafetyValidator()
     memory_safety_validator = UserMemorySafetyValidator()
@@ -77,4 +78,17 @@ def build_platform_inbound_service(settings: Settings) -> PlatformInboundService
         outbound_sender=outbound_sender,
         trace_repository=trace_repository
     )
+
+def build_user_memory_repository(settings: Settings):
+    backend = settings.memory_storage_backend.strip().lower()
+
+    if backend == "sqlite":
+        return SQLiteUserMemoryRepository(settings.sqlite_database_path)
+    
+    if backend == "json":
+        return UserMemoryRepository()
+    
+    raise ValueError(f"Unsupported memory storage backend: {settings.memory_storage_backend}")
+
+
 

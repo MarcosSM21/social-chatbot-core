@@ -28,7 +28,11 @@ from app.models.provider_payloads import InstagramWebhookPayload
 
 from app.core.settings import Settings
 from app.models.external import ExternalMessageEvent
-from app.core.container import build_http_channel_adapter, build_platform_inbound_service
+from app.core.container import (
+    build_http_channel_adapter, 
+    build_platform_inbound_service,
+    build_user_memory_repository,
+)
 from app.models.platform_payload import PlatformWebhookPayload
 from app.providers.exceptions import GenerationProviderError
 from app.storage.external_trace_repository import ExternalTraceRepository
@@ -37,7 +41,7 @@ from app.models.provider_raw_payload import ProviderRawPayloadRecord
 from app.storage.provider_raw_payload_repository import ProviderRawPayloadRepository
 from app.outbound.instagram_sender import InstagramOutboundSender
 from app.outbound.result import OutboundSendResult
-from app.storage.user_memory_repository import UserMemoryRepository
+
 
 
 
@@ -207,7 +211,7 @@ def create_internal_message(request: MessageRequest) -> MessageResponse:
 
 @app.delete("/internal/memory/empty", response_model=UserMemoryCleanupResponse)
 def delete_empty_internal_memories() -> UserMemoryCleanupResponse:
-    memory_repository = UserMemoryRepository()
+    memory_repository = build_user_memory_repository(settings)
     deleted_count = memory_repository.delete_empty_memories()
 
     return UserMemoryCleanupResponse(
@@ -218,7 +222,7 @@ def delete_empty_internal_memories() -> UserMemoryCleanupResponse:
 
 @app.get("/internal/memory/{platform}", response_model=UserMemoryListResponse)
 def list_internal_memory_by_platform(platform: str) -> UserMemoryListResponse:
-    memory_repository = UserMemoryRepository()
+    memory_repository = build_user_memory_repository(settings)
     memories = memory_repository.list_by_platform(platform)
 
     memory_responses = [_to_user_memory_response(memory) for memory in memories]
@@ -231,7 +235,7 @@ def list_internal_memory_by_platform(platform: str) -> UserMemoryListResponse:
 
 @app.get("/internal/memory/{platform}/{external_user_id}", response_model=UserMemoryResponse)
 def get_internal_memory_by_user(platform: str, external_user_id: str) -> UserMemoryResponse:
-    memory_repository = UserMemoryRepository()
+    memory_repository = build_user_memory_repository(settings)
     memory = memory_repository.get_by_user(platform=platform, external_user_id=external_user_id)
 
     if memory is None:
@@ -242,7 +246,7 @@ def get_internal_memory_by_user(platform: str, external_user_id: str) -> UserMem
 
 @app.delete("/internal/memory/{platform}/{external_user_id}", response_model=UserMemoryDeleteResponse)
 def delete_internal_memory_by_user( platform: str, external_user_id: str) -> UserMemoryDeleteResponse:
-    memory_repository = UserMemoryRepository()
+    memory_repository = build_user_memory_repository(settings)
     deleted = memory_repository.delete_by_user( platform=platform, external_user_id=external_user_id)
 
     if not deleted: 
