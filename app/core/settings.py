@@ -8,6 +8,8 @@ load_dotenv()
 @dataclass
 class Settings:
     app_env:str
+    sqlite_database_path: str
+    memory_storage_backend: str
     log_level:str
     llm_provider:str
     bot_name:str
@@ -39,10 +41,14 @@ class Settings:
     style_preset: str
 
 
+
+
     @classmethod
     def from_env(cls)-> "Settings":
         return cls(
             app_env=os.getenv("APP_ENV", "development"),
+            sqlite_database_path = os.getenv("SQLITE_DATABASE_PATH", "data/social_chatbot.sqlite3"),
+            memory_storage_backend = os.getenv("MEMORY_STORAGE_BACKEND", "json"),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             llm_provider=os.getenv("LLM_PROVIDER", "mock"),
             bot_name=os.getenv("BOT_NAME", "SocialBot"),

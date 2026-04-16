@@ -812,3 +812,105 @@ Memory control flow
    -> data/user_memories.json
 
 The main gain of this phase is control. The system can now remember users, but it also gives the developer a way to inspect and reset what it remembers. This matters before moving to production storage, because memory quality and safety should be observable and reversible while the behavior is still being tuned.
+
+
+## Status (XVI)
+
+Phase 11 completed: lightweight production storage for user memory.
+
+This phase introduces SQLite as the first production-oriented storage option for user memory. JSON storage is still available and remains useful for local experimentation, but the system can now persist structured memories in a single SQLite database, choose the memory backend through configuration, and migrate existing JSON memories deliberately.
+
+The project now provides:
+
+- SQLite connection setup through `app/storage/sqlite_connection.py`
+- SQLite schema initialization through `app/storage/sqlite_schema.py`
+- a `user_memories` table with:
+  - `platform`
+  - `external_user_id`
+  - legacy memory fields
+  - structured memory fields stored as JSON text
+  - `updated_at`
+- `SQLiteUserMemoryRepository` with the same practical interface as the JSON repository:
+  - `get_or_create`
+  - `get_by_user`
+  - `save`
+  - `load_memories`
+  - `save_memories`
+  - `list_by_platform`
+  - `delete_by_user`
+  - `delete_empty_memories`
+- backend selection through:
+  - `MEMORY_STORAGE_BACKEND=json`
+  - `MEMORY_STORAGE_BACKEND=sqlite`
+- SQLite database path configuration through:
+  - `SQLITE_DATABASE_PATH=data/social_chatbot.sqlite3`
+- a migration script:
+  - `scripts/migrate_user_memories_to_sqlite.py`
+- tests for:
+  - schema initialization
+  - SQLite repository behavior
+  - backend factory selection
+  - JSON-to-SQLite migration
+  - internal memory API behavior using SQLite
+
+## SQLite usage
+
+Default development mode still uses JSON:
+
+```env
+MEMORY_STORAGE_BACKEND=json
+```
+
+To use SQLite:
+
+```env
+MEMORY_STORAGE_BACKEND=sqlite
+SQLITE_DATABASE_PATH=data/social_chatbot.sqlite3
+```
+
+To preview a JSON-to-SQLite migration without writing:
+
+```bash
+.venv/bin/python scripts/migrate_user_memories_to_sqlite.py --dry-run
+```
+
+To migrate existing user memories:
+
+```bash
+.venv/bin/python scripts/migrate_user_memories_to_sqlite.py
+```
+
+## Implemented architecture
+
+Memory storage selection
+   -> Settings
+      -> MEMORY_STORAGE_BACKEND
+      -> SQLITE_DATABASE_PATH
+   -> build_user_memory_repository(settings)
+      -> UserMemoryRepository
+         -> data/user_memories.json
+      -> SQLiteUserMemoryRepository
+         -> data/social_chatbot.sqlite3
+         -> user_memories table
+
+Runtime memory flow
+   -> ConversationService
+      -> UserMemoryRepository-compatible backend
+      -> ConversationContextBuilder
+      -> UserMemory
+         -> user_profile
+         -> conversation_summary
+         -> stable_facts
+         -> preferences
+         -> relationship_notes
+
+Memory control flow
+   -> Internal API
+      -> GET /internal/memory/{platform}
+      -> GET /internal/memory/{platform}/{external_user_id}
+      -> DELETE /internal/memory/{platform}/{external_user_id}
+      -> DELETE /internal/memory/empty
+   -> build_user_memory_repository(settings)
+   -> selected memory backend
+
+The main gain of this phase is operational maturity without overcomplicating the system. The bot can still run in the simple JSON mode while developing, but it now has a clear path to SQLite for more reliable persistence. The migration is explicit instead of automatic, which keeps data movement visible and reversible while the project is still evolving.
