@@ -68,3 +68,46 @@ class UserMemoryRepository:
         
         memories.append(memory)
         self.save_memories(memories)
+
+
+    def list_by_platform(self, platform: str) -> list[UserMemory]:
+        memories = self.load_memories()
+        return [memory for memory in memories if memory.platform == platform]
+    
+
+    # Resetea memoria de usuario
+    def delete_by_user(self , platform: str, external_user_id: str) -> bool:
+        memories = self.load_memories()
+
+        remaining_memories = [memory for memory in memories if not (memory.platform == platform and memory.external_user_id == external_user_id)]
+
+        if len(remaining_memories) == len(memories):
+            return False
+        
+        self.save_memories(remaining_memories)
+        return True
+    
+    # Distinguir memoria útil de registro vacíos
+    def has_meaningful_memory(self, memory: UserMemory) -> bool:
+        return bool(
+            memory.user_profile 
+            or memory.conversation_summary
+            or memory.stable_facts
+            or memory.preferences
+            or memory.relationship_notes
+        )
+    
+    # Limpiar memorias creadas pero vacías
+    def delete_empty_memories(self) -> int:
+        memories = self.load_memories()
+        remaining_memories = [ memory for memory in memories if self.has_meaningful_memory(memory)]
+
+        deleted_count = len(memories) - len(remaining_memories)
+
+        if deleted_count > 0:
+            self.save_memories(remaining_memories)
+
+        return deleted_count
+    
+
+
