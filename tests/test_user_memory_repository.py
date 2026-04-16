@@ -80,3 +80,60 @@ def test_save_preserves_structured_memory_fields(tmp_path) -> None:
     assert memory.preferences == ["prefiero respuestas cortas"]
     assert memory.relationship_notes == ["no le gusta que le sobreexpliquen"]
 
+
+def test_list_by_platform_returns_only_platform_memories(tmp_path) -> None:
+    repository = UserMemoryRepository(str(tmp_path / "user_memories.json"))
+
+    repository.save(UserMemory(platform="instagram", external_user_id="ig-1"))
+    repository.save(UserMemory(platform="instagram", external_user_id="ig-2"))
+    repository.save(UserMemory(platform="api", external_user_id="api-1"))
+
+    memories = repository.list_by_platform("instagram")
+
+    assert [memory.external_user_id for memory in memories] == ["ig-1", "ig-2"]
+
+
+def test_delete_by_user_removes_existing_memory(tmp_path) -> None:
+    repository = UserMemoryRepository(str(tmp_path / "user_memories.json"))
+
+    repository.save(
+        UserMemory(
+            platform="instagram",
+            external_user_id="user-1",
+            stable_facts=["me llamo Marcos"],
+        )
+    )
+
+    deleted = repository.delete_by_user("instagram", "user-1")
+
+    assert deleted is True
+    assert repository.get_by_user("instagram", "user-1") is None
+
+
+def test_delete_by_user_returns_false_when_missing(tmp_path) -> None:
+    repository = UserMemoryRepository(str(tmp_path / "user_memories.json"))
+
+    deleted = repository.delete_by_user("instagram", "missing-user")
+
+    assert deleted is False
+
+
+def test_delete_empty_memories_removes_only_empty_records(tmp_path) -> None:
+    repository = UserMemoryRepository(str(tmp_path / "user_memories.json"))
+
+    repository.save(UserMemory(platform="instagram", external_user_id="empty-user"))
+    repository.save(
+        UserMemory(
+            platform="instagram",
+            external_user_id="memory-user",
+            preferences=["prefiero respuestas cortas"],
+        )
+    )
+
+    deleted_count = repository.delete_empty_memories()
+    remaining_memories = repository.load_memories()
+
+    assert deleted_count == 1
+    assert len(remaining_memories) == 1
+    assert remaining_memories[0].external_user_id == "memory-user"
+

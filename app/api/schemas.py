@@ -103,3 +103,32 @@ class InstagramWebhookPayloadRequest(BaseModel):
         default_factory=list,
         description="List of provider entry objects",
     )
+
+
+class UserMemoryResponse(BaseModel):
+    platform : str
+    external_user_id : str
+    user_profile : str | None = None
+    conversation_summary : str | None = None
+    stable_facts: list[str] = Field(default_factory=list)
+    preferences: list[str] = Field(default_factory=list)
+    relationship_notes: list[str] = Field(default_factory=list)
+    updated_at: str | None = None
+
+class UserMemoryListResponse(BaseModel):
+    platform : str
+    count : int
+    memories : list[UserMemoryResponse]
+
+class UserMemoryDeleteResponse(BaseModel):
+    platform : str
+    external_user_id : str
+    deleted: bool
+    detail: str
+
+
+class UserMemoryCleanupResponse(BaseModel):
+    deleted_count: int
+    detail: str
+
+

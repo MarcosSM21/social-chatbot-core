@@ -763,3 +763,52 @@ Structured memory prompt flow
       -> current user message
 
 The main gain of this phase is cleaner personalization. The bot can now distinguish between a stable fact like "me llamo Marcos" and a preference like "prefiero respuestas cortas y sin rodeos". This gives the character a better memory substrate while keeping the system simple and inspectable. The next natural step is memory control: being able to inspect, reset, clean, and eventually manage memory deliberately before moving to more serious production storage.
+
+
+## Status (XV)
+
+Phase 10 completed: memory control and cleanup.
+
+This phase adds basic operational control over user memory. Now that the bot can store structured memory, the project needs simple ways to inspect, reset, and clean memory without editing JSON files manually. This is still an internal/development control layer, not a public user-facing memory management system.
+
+The project now provides:
+
+- repository-level memory control operations:
+  - list memories by platform
+  - delete memory by platform and external user id
+  - detect whether a memory record contains meaningful data
+  - delete empty memory records
+- internal API endpoints for memory inspection:
+  - `GET /internal/memory/{platform}`
+  - `GET /internal/memory/{platform}/{external_user_id}`
+- internal API endpoint for resetting one user memory:
+  - `DELETE /internal/memory/{platform}/{external_user_id}`
+- internal API endpoint for cleaning empty memory records:
+  - `DELETE /internal/memory/empty`
+- response schemas for:
+  - single user memory
+  - memory lists
+  - user memory deletion
+  - empty memory cleanup
+- tests covering repository memory listing, deletion, and cleanup behavior
+
+## Implemented architecture
+
+Memory control flow
+   -> Internal API
+      -> GET /internal/memory/{platform}
+      -> GET /internal/memory/{platform}/{external_user_id}
+      -> DELETE /internal/memory/{platform}/{external_user_id}
+      -> DELETE /internal/memory/empty
+   -> UserMemoryRepository
+      -> list_by_platform
+      -> get_by_user
+      -> delete_by_user
+      -> delete_empty_memories
+      -> has_meaningful_memory
+   -> UserMemory
+      -> legacy fields
+      -> structured memory fields
+   -> data/user_memories.json
+
+The main gain of this phase is control. The system can now remember users, but it also gives the developer a way to inspect and reset what it remembers. This matters before moving to production storage, because memory quality and safety should be observable and reversible while the behavior is still being tuned.

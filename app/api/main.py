@@ -14,6 +14,10 @@ from app.api.schemas import (
     WebhookMessageRequest,
     WebhookEventResponse,
     InstagramWebhookPayloadRequest,
+    UserMemoryResponse,
+    UserMemoryListResponse,
+    UserMemoryDeleteResponse,
+    UserMemoryCleanupResponse,
 )
 
 from app.channels.http_channel_result import HttpChannelResult
@@ -33,6 +37,7 @@ from app.models.provider_raw_payload import ProviderRawPayloadRecord
 from app.storage.provider_raw_payload_repository import ProviderRawPayloadRepository
 from app.outbound.instagram_sender import InstagramOutboundSender
 from app.outbound.result import OutboundSendResult
+from app.storage.user_memory_repository import UserMemoryRepository
 
 
 
@@ -164,7 +169,8 @@ def privacy_policy() -> HTMLResponse:
 
 ###########################################
 
-########### MENSAJES ########################
+
+########### MENSAJES INTERNOS  ########################
 
 @app.post("/internal/messages", response_model=MessageResponse)
 def create_internal_message(request: MessageRequest) -> MessageResponse:
@@ -181,7 +187,6 @@ def create_internal_message(request: MessageRequest) -> MessageResponse:
     
     http_channel_adapter = build_http_channel_adapter(settings)
 
-    
 
     try:
         channel_result = http_channel_adapter.process_event(event)
@@ -194,7 +199,70 @@ def create_internal_message(request: MessageRequest) -> MessageResponse:
         session_id=channel_result.turn.session_id
     )
 
+##############################################################
 
+
+################# MEMORIA INTERNA #####################################
+
+
+@app.delete("/internal/memory/empty", response_model=UserMemoryCleanupResponse)
+def delete_empty_internal_memories() -> UserMemoryCleanupResponse:
+    memory_repository = UserMemoryRepository()
+    deleted_count = memory_repository.delete_empty_memories()
+
+    return UserMemoryCleanupResponse(
+        deleted_count=deleted_count,
+        detail = f"Deleted {deleted_count} empty user memory record(s)"
+    )
+
+
+@app.get("/internal/memory/{platform}", response_model=UserMemoryListResponse)
+def list_internal_memory_by_platform(platform: str) -> UserMemoryListResponse:
+    memory_repository = UserMemoryRepository()
+    memories = memory_repository.list_by_platform(platform)
+
+    memory_responses = [_to_user_memory_response(memory) for memory in memories]
+
+    return UserMemoryListResponse(
+        platform=platform,
+        count = len(memory_responses),
+        memories = memory_responses
+    )
+
+@app.get("/internal/memory/{platform}/{external_user_id}", response_model=UserMemoryResponse)
+def get_internal_memory_by_user(platform: str, external_user_id: str) -> UserMemoryResponse:
+    memory_repository = UserMemoryRepository()
+    memory = memory_repository.get_by_user(platform=platform, external_user_id=external_user_id)
+
+    if memory is None:
+        raise HTTPException(status_code=404, detail="User memory not found")
+    
+    return _to_user_memory_response(memory)
+
+
+@app.delete("/internal/memory/{platform}/{external_user_id}", response_model=UserMemoryDeleteResponse)
+def delete_internal_memory_by_user( platform: str, external_user_id: str) -> UserMemoryDeleteResponse:
+    memory_repository = UserMemoryRepository()
+    deleted = memory_repository.delete_by_user( platform=platform, external_user_id=external_user_id)
+
+    if not deleted: 
+        raise HTTPException(status_code=404, detail="User memory not found")
+    
+    return UserMemoryDeleteResponse(
+        platform=platform,
+        external_user_id=external_user_id,
+        deleted=True,
+        detail="User memory deleted",
+    )
+
+
+
+
+
+##################################################################
+
+
+######################## WEBHOOKS ####################################
 @app.post("/webhooks/messages")
 def receive_webhook_message(request: WebhookMessageRequest) -> MessageResponse | WebhookEventResponse:
     
@@ -313,6 +381,8 @@ def verify_generic_webhook(
 
 
 #==============FUNCIONES_AUXILIARES=====================
+
+
 
 def execute_webhook_verification(mode: str, token: str, challenge: str):
     if mode != "subscribe":
@@ -491,3 +561,19 @@ def _validate_instagram_webhook_signature(raw_body: bytes, signature_header: str
 
     if not hmac.compare_digest(expected_signature, signature_header.strip()):
         raise HTTPException(status_code=403, detail="Invalid webhook signature")
+    
+
+
+###########   MEMORIA  #############
+def _to_user_memory_response(memory) -> UserMemoryResponse:
+    return UserMemoryResponse(
+        platform=memory.platform,
+        external_user_id=memory.external_user_id,
+        user_profile=memory.user_profile,
+        conversation_summary=memory.conversation_summary,
+        stable_facts=memory.stable_facts,
+        preferences=memory.preferences,
+        relationship_notes=memory.relationship_notes,
+        updated_at=memory.updated_at,
+    )
+ 
