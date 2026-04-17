@@ -13,6 +13,7 @@ class Settings:
     log_level:str
     llm_provider:str
     bot_name:str
+    bot_enabled : bool
     bot_tone: str
     bot_welcome_message: str
     bot_goodbye_message: str
@@ -52,6 +53,7 @@ class Settings:
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             llm_provider=os.getenv("LLM_PROVIDER", "mock"),
             bot_name=os.getenv("BOT_NAME", "SocialBot"),
+            bot_enabled=os.getenv("BOT_ENABLED", "true").lower() == "true",
             bot_tone=os.getenv("BOT_TONE", "friendly"),
             bot_welcome_message=os.getenv("BOT_WELCOME_MESSAGE", 
                                           "¡Hola! Soy Social, escribe 'q' para salir"),

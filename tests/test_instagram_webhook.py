@@ -61,6 +61,11 @@ def build_payload(message_text: str = "hola", message_id: str = "mid-1") -> dict
     }
 
 
+@pytest.fixture(autouse=True)
+def enable_bot_by_default(monkeypatch) -> None:
+    monkeypatch.setattr(api_main.settings, "bot_enabled", True)
+
+
 def test_instagram_webhook_verification(monkeypatch) -> None:
     monkeypatch.setattr(api_main.settings, "webhook_verify_token", "verify-token")
 
@@ -283,3 +288,43 @@ async def test_instagram_webhook_traces_generation_failure_without_retrying(monk
     assert "provider down" in record.operational_detail
 
 
+
+
+@pytest.mark.anyio
+async def test_instagram_webhook_captures_message_without_reply_when_bot_disabled(monkeypatch) -> None:
+    FakeTraceRepository.duplicate = False
+    FakeTraceRepository.records = []
+
+    monkeypatch.setattr(api_main.settings, "instagram_app_secret", "secret")
+    monkeypatch.setattr(api_main.settings, "bot_enabled", False)
+    monkeypatch.setattr(api_main, "_store_instagram_raw_payload", lambda raw_payload: None)
+    monkeypatch.setattr(api_main, "ExternalTraceRepository", FakeTraceRepository)
+
+    def fail_if_called(external_event):
+        raise AssertionError("Bot disabled mode should not process or send responses")
+
+    monkeypatch.setattr(api_main, "_process_and_send_external_event", fail_if_called)
+
+    raw_body = json.dumps(build_payload(message_text="hola en modo escucha")).encode("utf-8")
+    request = FakeRequest(
+        raw_body=raw_body,
+        headers={"X-Hub-Signature-256": sign_payload(raw_body, "secret")},
+    )
+
+    response = await api_main.receive_instagram_webhook_message(request)
+
+    assert response.status == "accepted"
+    assert "bot is disabled" in response.detail
+
+    assert len(FakeTraceRepository.records) == 1
+
+    record = FakeTraceRepository.records[0]
+
+    assert record.inbound_status == "captured"
+    assert record.outbound_status == "not_sent"
+    assert record.incoming_message_text == "hola en modo escucha"
+    assert record.outgoing_message_text is None
+    assert record.operational_status == "bot_disabled"
+    assert record.operational_error_type is None
+
+    monkeypatch.setattr(api_main.settings, "bot_enabled", True)

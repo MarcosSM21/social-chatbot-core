@@ -18,6 +18,9 @@ from app.api.schemas import (
     UserMemoryListResponse,
     UserMemoryDeleteResponse,
     UserMemoryCleanupResponse,
+    OperationalEventListResponse,
+    OperationalEventResponse,
+    OperationalSummaryResponse,
 )
 
 from app.channels.http_channel_result import HttpChannelResult
@@ -259,8 +262,44 @@ def delete_internal_memory_by_user( platform: str, external_user_id: str) -> Use
         detail="User memory deleted",
     )
 
+############################################################################
 
 
+########################### OPERACION INTERNA ##############################
+
+@app.get("/internal/operations/events", response_model=OperationalEventListResponse)
+def list_recent_operational_events(
+    limit: int = Query(default=20, ge=1, le=100),
+    platform: str | None = None,
+) -> OperationalEventListResponse:
+    
+    trace_repository = ExternalTraceRepository()
+    records = trace_repository.list_recent_records(
+        limit=limit,
+        platform=platform,
+    )
+
+    events = [_to_operational_event_response(record) for record in records]
+
+    return OperationalEventListResponse(
+        count =len(events),
+        events=events
+    )
+
+
+@app.get("/internal/operations/summary", response_model=OperationalSummaryResponse)
+def get_operational_summary(platform: str | None = None) -> OperationalSummaryResponse:
+    trace_repository = ExternalTraceRepository()
+    summary = trace_repository.summarize_records(platform=platform)
+
+    return OperationalSummaryResponse(
+        platform=summary["platform"],
+        total=summary["total"],
+        inbound_status_counts=summary["inbound_status_counts"],
+        outbound_status_counts=summary["outbound_status_counts"],
+        operational_status_counts=summary["operational_status_counts"],
+        operational_error_type_counts=summary["operational_error_type_counts"],
+    )
 
 
 ##################################################################
@@ -340,6 +379,13 @@ async def receive_instagram_webhook_message(request: Request) -> WebhookEventRes
             return WebhookEventResponse(
                 status="ignored",
                 detail="Duplicate provider message ignored.",
+            )
+        
+        if not settings.bot_enabled:
+            _save_bot_disabled_trace(trace_repository, external_event)
+            return WebhookEventResponse(
+                status="accepted",
+                detail="Instagram message captured, but bot is disabled. No response was sent.",
             )
 
         try:
@@ -545,6 +591,29 @@ def _save_failed_processing_trace(
         )
     )
 
+def _save_bot_disabled_trace(
+    trace_repository: ExternalTraceRepository,
+    external_event: ExternalMessageEvent,
+) -> None:
+    trace_repository.save_records(
+        ExternalTraceRecord(
+            platform="instagram",
+            external_conversation_id=external_event.conversation_id,
+            external_user_id=external_event.user_id,
+            internal_session_id=None,
+            incoming_message_text=external_event.message_text,
+            outgoing_message_text=None,
+            inbound_status="captured",
+            outbound_status="not_sent",
+            detail="Inbound Instagram message captured, but bot is disabled.",
+            provider_message_id=external_event.message_id,
+            outbound_message_id=None,
+            operational_status="bot_disabled",
+            operational_error_type=None,
+            operational_detail="BOT_ENABLED=false. Message was captured without generating or sending a response.",
+        )
+    )  
+
 
 
 def _validate_instagram_webhook_signature(raw_body: bytes, signature_header: str | None) -> None:
@@ -579,5 +648,29 @@ def _to_user_memory_response(memory) -> UserMemoryResponse:
         preferences=memory.preferences,
         relationship_notes=memory.relationship_notes,
         updated_at=memory.updated_at,
+    )
+
+
+########### OPERATION ###############3
+def _to_operational_event_response(record: ExternalTraceRecord) -> OperationalEventResponse:
+    return OperationalEventResponse(
+        platform=record.platform,
+        external_conversation_id=record.external_conversation_id,
+        external_user_id=record.external_user_id,
+        internal_session_id=record.internal_session_id,
+        incoming_message_text=record.incoming_message_text,
+        outgoing_message_text=record.outgoing_message_text,
+        inbound_status=record.inbound_status,
+        outbound_status=record.outbound_status,
+        detail=record.detail,
+        provider_message_id=record.provider_message_id,
+        outbound_message_id=record.outbound_message_id,
+        operational_status=record.operational_status,
+        operational_error_type=record.operational_error_type,
+        operational_detail=record.operational_detail,
+        memory_loaded=record.memory_loaded,
+        memory_updated=record.memory_updated,
+        style_preset=record.style_preset,
+        safety_validation_status=record.safety_validation_status,
     )
  
