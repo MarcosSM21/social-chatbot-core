@@ -39,3 +39,42 @@ class ExternalTraceRepository:
             and record.inbound_status == "processed"
             for record in records
         )
+    
+    def list_recent_records(self, limit: int = 20, platform: str | None = None):
+        records = self.load_records()
+
+        if platform is not None:
+            records = [record for record in records if record.platform==platform]
+
+        return list(reversed(records[-limit:]))
+    
+
+    def summarize_records(self, platform: str | None = None) -> dict:
+        records = self.load_records()
+
+        if platform is not None:
+            records = [record for record in records if record.platform==platform]
+
+        return {
+            "platform": platform,
+            "total": len(records),
+            "inbound_status_counts": self._count_by_field(records, "inbound_status"),
+            "outbound_status_counts": self._count_by_field(records, "outbound_status"),
+            "operational_status_counts": self._count_by_field(records, "operational_status"),
+            "operational_error_type_counts": self._count_by_field(records, "operational_error_type"),
+        }
+    
+
+    def _count_by_field(self, records: list[ExternalTraceRecord], field_name: str) -> dict[str,int]:
+        counts: dict[str, int] = {}
+        
+        for record in records:
+            value = getattr(record, field_name)
+            key = value if value is not None else "none"
+            counts[key] = counts.get(key,0) + 1
+
+
+        return counts 
+
+
+

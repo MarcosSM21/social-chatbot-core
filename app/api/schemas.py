@@ -131,4 +131,39 @@ class UserMemoryCleanupResponse(BaseModel):
     deleted_count: int
     detail: str
 
+class OperationalEventResponse(BaseModel):
+    platform: str
+    external_conversation_id: str
+    external_user_id: str
+    internal_session_id: str | None = None
+    incoming_message_text: str | None = None
+    outgoing_message_text: str | None = None
+    inbound_status: str
+    outbound_status: str | None = None
+    detail: str
+    provider_message_id: str | None = None
+    outbound_message_id: str | None = None
+    operational_status: str | None = None
+    operational_error_type: str | None = None
+    operational_detail: str | None = None
+    memory_loaded: bool | None = None
+    memory_updated: bool | None = None
+    style_preset: str | None = None
+    safety_validation_status: str | None = None
+
+
+class OperationalEventListResponse(BaseModel):
+    count: int
+    events: list[OperationalEventResponse]
+
+
+class OperationalSummaryResponse(BaseModel):
+    platform: str | None = None
+    total: int
+    inbound_status_counts: dict[str, int]
+    outbound_status_counts: dict[str, int]
+    operational_status_counts: dict[str, int]
+    operational_error_type_counts: dict[str, int]
+
+
 

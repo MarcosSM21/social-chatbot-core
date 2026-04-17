@@ -914,3 +914,87 @@ Memory control flow
    -> selected memory backend
 
 The main gain of this phase is operational maturity without overcomplicating the system. The bot can still run in the simple JSON mode while developing, but it now has a clear path to SQLite for more reliable persistence. The migration is explicit instead of automatic, which keeps data movement visible and reversible while the project is still evolving.
+
+
+## Status (XVII)
+
+Phase 12 completed: real operation minimum.
+
+This phase adds a small operational layer for running the Instagram DM bot with more confidence. The goal is not to build a large observability platform, but to answer practical questions quickly when something happens in the real DM flow: did the message arrive, was it ignored, was the bot disabled, did generation fail, did Instagram sending fail, and what should be checked next.
+
+The project now provides:
+
+- internal endpoint for recent operational events:
+  - `GET /internal/operations/events`
+  - `GET /internal/operations/events?platform=instagram&limit=5`
+- internal endpoint for operational summaries:
+  - `GET /internal/operations/summary`
+  - `GET /internal/operations/summary?platform=instagram`
+- trace repository helpers for:
+  - listing recent traces newest-first
+  - filtering traces by platform
+  - summarizing inbound, outbound and operational statuses
+- bot listen-only mode through:
+  - `BOT_ENABLED=false`
+- explicit bot-disabled traces with:
+  - `inbound_status="captured"`
+  - `outbound_status="not_sent"`
+  - `operational_status="bot_disabled"`
+- operational debugging guide:
+  - `docs/instagram_dm_debugging.md`
+- tests covering:
+  - recent operational events
+  - operational summaries
+  - bot-disabled webhook behavior
+  - trace repository status counts
+
+## Operational usage
+
+To inspect recent Instagram events:
+
+```bash
+curl "http://localhost:8000/internal/operations/events?platform=instagram&limit=5"
+```
+
+To inspect a compact operational summary:
+
+```bash
+curl "http://localhost:8000/internal/operations/summary?platform=instagram"
+```
+
+To receive real Instagram DMs without replying:
+
+```env
+BOT_ENABLED=false
+```
+
+After changing `BOT_ENABLED`, restart FastAPI so the setting is reloaded.
+
+## Implemented architecture
+
+Operational inspection flow
+   -> Internal API
+      -> GET /internal/operations/events
+      -> GET /internal/operations/summary
+   -> ExternalTraceRepository
+      -> data/external_traces.json
+      -> list_recent_records
+      -> summarize_records
+   -> OperationalEventResponse
+   -> OperationalSummaryResponse
+
+Instagram listen-only flow
+   -> POST /providers/instagram/webhook/messages
+   -> signature validation
+   -> raw payload persistence
+   -> InstagramPayloadParser
+   -> ExternalMessageEvent
+   -> BOT_ENABLED=false
+      -> ExternalTraceRecord
+         -> inbound_status=captured
+         -> outbound_status=not_sent
+         -> operational_status=bot_disabled
+      -> no LLM generation
+      -> no Instagram outbound send
+
+The main gain of this phase is operational clarity. The system can now be connected to real Instagram traffic in a safer way: first in listen-only mode, then with replies enabled once delivery and parsing are confirmed. This keeps the project practical and avoids overbuilding observability while still giving enough visibility to diagnose real failures quickly.
