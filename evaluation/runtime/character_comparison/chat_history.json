@@ -12,7 +12,7 @@
     "session_metadata": {
       "memory_loaded": false,
       "memory_updated": true,
-      "memory_profile_status": "passed",
+      "memory_profile_status": "empty",
       "memory_profile_detail": "No candidate memory to validate.",
       "memory_profile_matched_rule": null,
       "memory_summary_status": "passed",
@@ -201,7 +201,7 @@
     "session_metadata": {
       "memory_loaded": false,
       "memory_updated": true,
-      "memory_profile_status": "passed",
+      "memory_profile_status": "empty",
       "memory_profile_detail": "No candidate memory to validate.",
       "memory_profile_matched_rule": null,
       "memory_summary_status": "passed",

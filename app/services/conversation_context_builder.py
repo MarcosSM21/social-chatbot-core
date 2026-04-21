@@ -5,6 +5,8 @@ from app.models.conversation_context import ConversationContext
 from app.storage.user_memory_repository import UserMemoryRepository
 from app.models.conversation_character import ConversationCharacter
 from app.storage.character_repository import CharacterRepository
+from app.models.user_memory import UserMemory
+
 
 
 
@@ -16,7 +18,13 @@ class ConversationContextBuilder:
 
     def build(self, platform: str, external_user_id : str, message: ChatMessage, recent_history: list[ChatTurn] ) -> ConversationContext:
 
-        user_memory = self.user_memory_repository.get_or_create(platform=platform, external_user_id=external_user_id)
+        user_memory = self.user_memory_repository.get_by_user(
+            platform=platform,
+            external_user_id=external_user_id
+        ) or UserMemory (
+            platform=platform,
+            external_user_id=external_user_id,
+        )
 
         safety_policy = self._build_safety_policy()
         character = self._build_character()

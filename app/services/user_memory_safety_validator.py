@@ -26,7 +26,7 @@ class UserMemorySafetyValidator:
     def validate_candidate_memory(self, candidate_text: str | None) -> UserMemorySafetyResult:
         if not candidate_text:
             return UserMemorySafetyResult(
-                status="passed",
+                status="empty",
                 detail="No candidate memory to validate.",
                 matched_rule=None,
             )

@@ -1384,3 +1384,200 @@ Legacy trace note
    -> New conversation metadata no longer treats global style as active
 
 The main gain of this phase is conceptual clarity. There is now one place to tune conversational voice: the active character file. This prevents global style settings from quietly competing with the character, and it makes future character work cleaner, especially when characters are intentionally very different from each other.
+
+
+## Status (XXII)
+
+Phase 17 completed: memory naturalness foundation.
+
+This phase clarifies how user memory works and improves the first layer of memory naturalness. The goal was not to build perfect human-like memory yet, but to make the current memory flow understandable, avoid unnecessary empty records, improve metadata semantics, and extract summary generation into a dedicated component that can later be replaced by an LLM-based summarizer.
+
+The project now provides:
+
+- documented memory behavior through tests:
+  - `tests/test_memory_current_flow.py`
+- explicit memory summarization service:
+  - `app/services/memory_summarizer.py`
+- summarizer interface:
+  - `MemorySummarizer`
+- first implementation:
+  - `RuleBasedMemorySummarizer`
+- cleaner `memory_loaded` semantics:
+  - true if any meaningful memory exists
+  - `user_profile`
+  - `conversation_summary`
+  - `stable_facts`
+  - `preferences`
+  - `relationship_notes`
+- no empty memory creation when only building context
+- `UserMemorySafetyValidator` now distinguishes:
+  - `empty`
+  - `passed`
+  - `blocked`
+- less mechanical conversation summaries:
+  - old: `User said... Assistant replied...`
+  - new: `The user mentioned... The assistant responded in context.`
+- tests covering:
+  - memory creation
+  - structured facts
+  - preferences
+  - sensitive memory blocking
+  - user separation
+  - context building without empty memory writes
+  - rule-based summarization
+
+## Memory Storage
+
+User memory is stored per platform and external user:
+
+```text
+platform
+external_user_id
+```
+
+For Instagram, this means each DM sender gets a separate memory record:
+
+```text
+platform=instagram
+external_user_id=<instagram_scoped_user_id>
+```
+
+The active storage backend is selected with:
+
+```env
+MEMORY_STORAGE_BACKEND=json
+```
+
+or:
+
+```env
+MEMORY_STORAGE_BACKEND=sqlite
+```
+
+JSON storage:
+
+```text
+data/user_memories.json
+```
+
+SQLite storage:
+
+```text
+data/social_chatbot.sqlite3
+-> user_memories table
+```
+
+## Current Memory Flow
+
+Runtime memory flow
+   -> ConversationService.process_message
+      -> reads existing memory with get_by_user
+      -> computes memory_loaded
+      -> ConversationContextBuilder builds context
+         -> reads memory with get_by_user
+         -> does not create empty memory records
+      -> LLM/provider generates response
+      -> response safety validation
+      -> _update_user_memory
+         -> reads existing memory or creates temporary UserMemory
+         -> extracts profile candidates
+         -> validates memory safety
+         -> classifies stable facts and preferences
+         -> summarizes latest exchange through MemorySummarizer
+         -> saves only if memory actually changed
+
+Meaningful memory fields:
+
+```text
+user_profile
+conversation_summary
+stable_facts
+preferences
+relationship_notes
+```
+
+## Memory Summarizer Direction
+
+Current implementation:
+
+```text
+RuleBasedMemorySummarizer
+```
+
+Future direction:
+
+```text
+LLMMemorySummarizer
+FallbackMemorySummarizer
+   -> try LLM summarizer
+   -> fallback to rule-based summarizer
+```
+
+This keeps `ConversationService` focused on orchestration while memory summarization can evolve independently. The next improvement should make memory even more selective and natural: not every message deserves long-term memory, and not every stored memory should be surfaced in every prompt.
+
+The main gain of this phase is trust. Memory is no longer a vague side effect. It has a clear storage location, clear creation rules, clearer metadata, and a summarization boundary prepared for future LLM-based memory.
+
+
+## Status (XXIII)
+
+Phase 18 completed: multi-turn conversation continuity.
+
+This phase adds an evaluation path for longer conversations. The goal was to stop testing only isolated single messages and start checking whether the bot can keep a coherent thread across several turns while using memory safely.
+
+The project now provides:
+
+- a realistic multi-turn evaluation case:
+  - `evaluation/cases/multiturn_conversation_cases.json`
+- a multi-turn evaluation runner:
+  - `evaluation/run_multiturn_evaluation.py`
+- JSON and Markdown reports for multi-turn runs:
+  - `evaluation/reports/multiturn_report_*.json`
+  - `evaluation/reports/multiturn_report_*.md`
+- readable conversation reports showing:
+  - user message
+  - assistant/character response
+  - memory metadata
+  - failed checks, if any
+  - final memory state
+- improved rule-based memory summaries
+- better extraction of natural memory facts:
+  - names inside normal phrases
+  - embedded `prefiero...` preferences
+  - direct `me gusta...` preferences
+- protection against a false memory case:
+  - questions such as `qué te dije sobre cómo me gusta...` should not create fake preferences
+
+The multi-turn evaluation currently validates:
+
+- the user name is remembered across turns
+- communication preferences are stored and reused
+- sensitive data such as passwords is not stored
+- the conversation can recover after a sensitive message
+- the character can continue a longer DM-like thread
+- final memory does not contain secrets
+
+Latest validated run:
+
+```text
+Provider: ollama
+Character: Laia
+Total cases: 1
+Passed cases: 1
+Failed cases: 0
+```
+
+The latest full test suite also passes:
+
+```text
+120 passed
+```
+
+Current limitation:
+
+```text
+RuleBasedMemorySummarizer
+```
+
+The summarizer is now more useful than before, but it is still rule-based. It can capture simple continuity, but it cannot deeply understand emotional nuance or produce a rich evolving user model. The architecture is ready for a future `LLMMemorySummarizer`, but this phase intentionally keeps memory summarization deterministic and easy to inspect.
+
+The main gain of this phase is confidence in continuity. The bot no longer only proves that it can reply to one message. It can now be evaluated through a longer conversation where memory, safety, character, and conversational flow interact.

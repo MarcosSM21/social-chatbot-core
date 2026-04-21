@@ -50,3 +50,11 @@ def test_user_memory_safety_blocks_sensitive_memory() -> None:
     assert validator.validate_candidate_memory("mi token es abc").status == "blocked"
     assert validator.validate_candidate_memory("mi dni es 12345678A").status == "blocked"
     assert validator.validate_candidate_memory("mi api key es abc").status == "blocked"
+
+
+def test_user_memory_safety_validator_marks_empty_candidate() -> None:
+    result = UserMemorySafetyValidator().validate_candidate_memory(None)
+
+    assert result.status == "empty"
+    assert result.detail == "No candidate memory to validate."
+    assert result.matched_rule is None

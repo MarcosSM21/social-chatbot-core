@@ -1,4 +1,5 @@
 from datetime import datetime, UTC
+import re
 
 from app.engine.response_engine import ResponseEngine
 from app.models.chat import ChatMessage, ChatTurn
@@ -7,6 +8,10 @@ from app.services.conversation_context_builder import ConversationContextBuilder
 from app.storage.user_memory_repository import UserMemoryRepository
 from app.services.assistant_response_safety_validator import AssistantResponseSafetyValidator
 from app.services.user_memory_safety_validator import UserMemorySafetyValidator
+from app.models.user_memory import UserMemory
+from app.services.memory_summarizer import MemorySummarizer, RuleBasedMemorySummarizer
+
+
 
 
 class ConversationService:
@@ -17,7 +22,8 @@ class ConversationService:
         context_builder: ConversationContextBuilder,
         user_memory_repository: UserMemoryRepository,
         response_safety_validator: AssistantResponseSafetyValidator,
-        memory_safety_validator: UserMemorySafetyValidator
+        memory_safety_validator: UserMemorySafetyValidator,
+        memory_summarizer: MemorySummarizer | None = None,
     ) -> None:
         self.response_engine = response_engine
         self.chat_repository = chat_repository
@@ -25,6 +31,7 @@ class ConversationService:
         self.user_memory_repository = user_memory_repository
         self.response_safety_validator = response_safety_validator
         self.memory_safety_validator = memory_safety_validator
+        self.memory_summarizer = memory_summarizer or RuleBasedMemorySummarizer()
 
     def process_message(
         self,
@@ -35,14 +42,12 @@ class ConversationService:
     ) -> ChatTurn:
         recent_history = self.chat_repository.get_recent_turns(session_id, limit=3)
 
-        existing_memory = self.user_memory_repository.get_or_create(
+        existing_memory = self.user_memory_repository.get_by_user(
             platform=platform,
             external_user_id=external_user_id,
         )
 
-        memory_loaded = bool(
-            existing_memory.user_profile or existing_memory.conversation_summary
-        )
+        memory_loaded = self._has_meaningful_memory(existing_memory)
 
         context = self.context_builder.build(
             platform=platform,
@@ -101,6 +106,19 @@ class ConversationService:
             limit=limit,
         )
     
+    def _has_meaningful_memory(self, memory: UserMemory | None) -> bool:
+        if memory is None:
+            return False
+
+
+        return bool(
+            memory.user_profile
+            or memory.conversation_summary
+            or memory.stable_facts
+            or memory.preferences
+            or memory.relationship_notes
+        )
+    
     def _update_user_memory(
         self,
         platform: str,
@@ -108,7 +126,10 @@ class ConversationService:
         user_message: ChatMessage,
         assistant_message: ChatMessage,
     ) -> dict:
-        memory = self.user_memory_repository.get_or_create(
+        memory = self.user_memory_repository.get_by_user(
+            platform=platform,
+            external_user_id=external_user_id,
+        ) or UserMemory(
             platform=platform,
             external_user_id=external_user_id,
         )
@@ -142,7 +163,7 @@ class ConversationService:
                 memory.preferences = self._append_unique_memory_item(items=memory.preferences, candidate=memory_value)
 
 
-        candidate_summary = self._build_conversation_summary_candidate(
+        candidate_summary = self.memory_summarizer.summarize(
             current_summary=memory.conversation_summary,
             user_message=user_message.content,
             assistant_message=assistant_message.content,
@@ -181,20 +202,46 @@ class ConversationService:
 
     def _extract_user_profile_candidate(self, user_message: str) -> str | None:
         text = user_message.strip()
-        lowered = text.lower()
 
-        if lowered.startswith("me llamo "):
-            return text
-        if lowered.startswith("mi nombre es "):
-            return text
-        if lowered.startswith("prefiero "):
-            return text
-        if lowered.startswith("me gusta "):
-            return text
-        if lowered.startswith("no me gusta "):
-            return text
+        name_candidate = self._extract_name_candidate(text)
+        if name_candidate:
+            return name_candidate
+
+        preference_candidate = self._extract_preference_candidate(text)
+        if preference_candidate:
+            return preference_candidate
 
         return None
+
+    def _extract_name_candidate(self, text: str) -> str | None:
+        me_llamo_match = re.search(r"\bme llamo\s+([^,.!?]+)", text, re.IGNORECASE)
+        if me_llamo_match:
+            name = me_llamo_match.group(1).strip()
+            return f"me llamo {name}"
+
+        mi_nombre_match = re.search(r"\bmi nombre es\s+([^,.!?]+)", text, re.IGNORECASE)
+        if mi_nombre_match:
+            name = mi_nombre_match.group(1).strip()
+            return f"mi nombre es {name}"
+
+        return None
+
+    def _extract_preference_candidate(self, text: str) -> str | None:
+        preference_patterns = [
+            ("no me gusta", r"^\s*no me gusta\s+([^,.!?]+)"),
+            ("me gusta", r"^\s*me gusta\s+([^,.!?]+)"),
+            ("prefiero", r"\bprefiero\s+([^,.!?]+)"),
+        ]
+
+        for prefix, pattern in preference_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                preference = match.group(1).strip()
+                return f"{prefix} {preference}"
+
+        return None
+
+
     
     def _merge_user_profile(
         self,
@@ -239,24 +286,3 @@ class ConversationService:
 
         return None, None
     
-
-
-    def _build_conversation_summary_candidate(
-        self,
-        current_summary: str | None,
-        user_message: str,
-        assistant_message: str,
-    ) -> str:
-        latest_exchange = (
-            f"User said: {user_message.strip()} "
-            f"Assistant replied: {assistant_message.strip()}"
-        )
-
-        if not current_summary:
-            return latest_exchange[:600]
-
-        combined = f"{current_summary}\n{latest_exchange}"
-        return combined[-600:]
-
-
- 

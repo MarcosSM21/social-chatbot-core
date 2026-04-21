@@ -20,6 +20,7 @@ from app.storage.user_memory_repository import UserMemoryRepository
 from app.services.assistant_response_safety_validator import AssistantResponseSafetyValidator
 from app.services.user_memory_safety_validator import UserMemorySafetyValidator
 from app.storage.sqlite_user_memory_repository import SQLiteUserMemoryRepository
+from app.services.memory_summarizer import RuleBasedMemorySummarizer
 
 
 def build_generation_provider(settings: Settings):
@@ -44,6 +45,7 @@ def build_chat_orchestrator(settings: Settings) -> ChatOrchestrator:
     context_builder = ConversationContextBuilder(settings, user_memory_repository=user_memory_repository)
     response_safety_validator = AssistantResponseSafetyValidator()
     memory_safety_validator = UserMemorySafetyValidator()
+    memory_summarizer = RuleBasedMemorySummarizer()
 
     conversation_service = ConversationService(
         response_engine,
@@ -52,6 +54,7 @@ def build_chat_orchestrator(settings: Settings) -> ChatOrchestrator:
         user_memory_repository,
         response_safety_validator,
         memory_safety_validator,
+        memory_summarizer,
     )
     return ChatOrchestrator(conversation_service)
 
