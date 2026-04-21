@@ -1299,3 +1299,88 @@ Internal character inspection flow
       -> ActiveCharacterResponse
 
 The main gain of this phase is runtime clarity. Character files are still simple JSON documents, but the system now treats them as managed runtime assets instead of loose files. This makes character iteration safer and prepares the project for future work such as cleaner style removal, per-environment character selection, per-user character assignment, or controlled runtime switching.
+
+
+## Status (XXI)
+
+Phase 16 completed: character owns voice.
+
+This phase removes the old global conversation style layer from the live conversational flow. Earlier versions used `ConversationStyle`, `STYLE_*` environment variables and `style_instructions` as a general voice layer. That was useful before characters became rich enough, but it became confusing once each character started owning its own voice, rhythm, boundaries and relationship dynamic.
+
+The architectural rule is now simpler:
+
+```text
+The character defines voice.
+The system defines safety and runtime behavior.
+Memory personalizes the conversation.
+The provider generates the reply.
+```
+
+The project now provides:
+
+- no `ConversationStyle` model in the live code path
+- no `STYLE_*` fields exposed from `Settings`
+- no `style_instructions` inside `ConversationContext`
+- no global style message sent to the LLM provider
+- no new `style_preset` in conversation session metadata
+- prompt tests confirming global style constraints are absent
+- settings tests confirming `STYLE_*` variables no longer affect runtime settings
+
+## Character Voice Rule
+
+If a character should answer shortly, warmly, dramatically, playfully, coldly, flirtatiously or formally, that behavior belongs in the character JSON:
+
+```text
+characters/*.json
+   -> speaking_style
+   -> voice_guidelines
+   -> conversation_habits
+   -> response_principles
+   -> boundaries
+   -> avoid_phrases
+```
+
+The `.env` file should no longer be used to control conversational voice through global style variables.
+
+Still valid runtime variables:
+
+```env
+CHARACTER_FILE=characters/leo_realistic_friend.json
+BOT_ENABLED=false
+GENERATION_PROVIDER=ollama
+```
+
+`BOT_ENABLED` remains an operational switch. It controls whether the bot replies or only captures messages. It does not define conversational style.
+
+## Implemented architecture
+
+Prompt construction flow
+   -> ConversationService
+   -> ConversationContextBuilder
+      -> system instructions
+      -> safety instructions
+      -> active character
+      -> compact character brief
+      -> user memory
+      -> recent conversation history
+   -> LocalLLMGenerationProvider
+      -> system
+      -> safety
+      -> character
+      -> memory
+      -> history
+      -> user message
+
+Removed style flow
+   -> STYLE_* environment variables
+   -> Settings style fields
+   -> ConversationStyle
+   -> style_instructions
+   -> global style prompt message
+
+Legacy trace note
+   -> Some trace and API models may still expose `style_preset` or `style_snapshot`
+   -> These are compatibility fields for older records
+   -> New conversation metadata no longer treats global style as active
+
+The main gain of this phase is conceptual clarity. There is now one place to tune conversational voice: the active character file. This prevents global style settings from quietly competing with the character, and it makes future character work cleaner, especially when characters are intentionally very different from each other.

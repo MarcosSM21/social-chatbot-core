@@ -119,7 +119,7 @@ def test_prompt_character_is_declared_as_only_conversational_identity(tmp_path) 
 
     assert "Your conversational identity, voice, and boundaries come from the active character instructions. " in contents
 
-def test_prompt_style_is_subordinate_to_character(tmp_path) -> None:
+def test_prompt_does_not_include_global_style_constraints(tmp_path) -> None:
     chat_history_file = tmp_path / "chat_history.json"
     user_memory_file = tmp_path / "user_memories.json"
 
@@ -134,8 +134,9 @@ def test_prompt_style_is_subordinate_to_character(tmp_path) -> None:
 
     contents = "\n".join(message["content"] for message in preview["messages"])
 
-    assert "Global style constraints" in contents
-    assert "The active character instructions are the main source of identity, tone, and voice." in contents
+    assert "Global style constraints" not in contents
+    assert "short_direct_calm" not in contents
+
 
 
 def test_prompt_uses_compact_character_brief(tmp_path, monkeypatch) -> None:

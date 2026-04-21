@@ -92,7 +92,6 @@ def run_character_case(character_file: str, message: str, provider: str, session
         "session_metadata": {
             "memory_loaded": turn.session_metadata.get("memory_loaded"),
             "memory_updated": turn.session_metadata.get("memory_updated"),
-            "style_preset": turn.session_metadata.get("style_preset"),
             "safety_validation_status": turn.session_metadata.get("safety_validation_status"),
         },
     }

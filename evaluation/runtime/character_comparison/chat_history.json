@@ -18,17 +18,6 @@
       "memory_summary_status": "passed",
       "memory_summary_detail": "Candidate memory passed safety validation.",
       "memory_summary_matched_rule": null,
-      "style_preset": "short_direct_calm",
-      "style_snapshot": {
-        "persona_hint": "A guy in his twenties speaking naturally and casually.",
-        "tone": "calm",
-        "response_length": "short",
-        "directness": "high",
-        "warmth": "medium",
-        "formality": "low",
-        "rhythm": "natural",
-        "empathy": "high"
-      },
       "character_id": "leo_realistic_friend",
       "character_name": "Leo",
       "character_snapshot": {
@@ -218,17 +207,6 @@
       "memory_summary_status": "passed",
       "memory_summary_detail": "Candidate memory passed safety validation.",
       "memory_summary_matched_rule": null,
-      "style_preset": "short_direct_calm",
-      "style_snapshot": {
-        "persona_hint": "A guy in his twenties speaking naturally and casually.",
-        "tone": "calm",
-        "response_length": "short",
-        "directness": "high",
-        "warmth": "medium",
-        "formality": "low",
-        "rhythm": "natural",
-        "empathy": "high"
-      },
       "character_id": "laia_ambitious_model",
       "character_name": "Laia",
       "character_snapshot": {

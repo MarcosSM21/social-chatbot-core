@@ -80,8 +80,6 @@ class ConversationService:
                 "memory_summary_status": memory_update_metadata["memory_summary_status"],
                 "memory_summary_detail": memory_update_metadata["memory_summary_detail"],
                 "memory_summary_matched_rule": memory_update_metadata["memory_summary_matched_rule"],
-                "style_preset": self.context_builder.settings.style_preset,
-                "style_snapshot": context.style.to_dict(),
                 "character_id": context.character.character_id,
                 "character_name": context.character.display_name,
                 "character_snapshot": context.character.to_dict(),

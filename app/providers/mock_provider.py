@@ -30,7 +30,6 @@ class MockGenerationProvider:
             "has_history": len(context.recent_history) > 0,
             "history_size": len(context.recent_history),
             "recent_user_messages": [turn.user_message.content for turn in context.recent_history[-3:]],
-            "style_instructions": context.style_instructions,
         }
     
     def _build_mock_prompt(self, context: dict) -> dict:
