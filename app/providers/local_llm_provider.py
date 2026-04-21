@@ -15,7 +15,7 @@ class LocalLLMGenerationProvider:
 
 
     def generate_reply(self, context: ConversationContext) -> str:
-        messages = self._build_messages(context)
+        messages = self.build_prompt_messages(context)
 
         try:
             response = requests.post(
@@ -45,6 +45,10 @@ class LocalLLMGenerationProvider:
             raise GenerationProviderError("LLM provider returned an empty reply")
         
         return reply_text
+    
+    def build_prompt_messages(self, context: ConversationContext) -> list[dict]:
+        return self._build_messages(context)
+    
     
     
     def _build_messages(self, context: ConversationContext) -> list[dict]:

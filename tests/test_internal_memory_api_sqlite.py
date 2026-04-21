@@ -31,7 +31,7 @@ def test_internal_memory_list_uses_sqlite_backend(monkeypatch, tmp_path) -> None
         )
     )
 
-    response = api_main.list_internal_memory_by_platform("instagram")
+    response = api_main.list_internal_memory_by_platform("instagram", _=None)
 
     assert response.platform == "instagram"
     assert response.count == 1
@@ -52,7 +52,7 @@ def test_internal_memory_detail_uses_sqlite_backend(monkeypatch, tmp_path) -> No
         )
     )
 
-    response = api_main.get_internal_memory_by_user("instagram", "user-1")
+    response = api_main.get_internal_memory_by_user("instagram", "user-1", _=None)
 
     assert response.platform == "instagram"
     assert response.external_user_id == "user-1"
@@ -71,7 +71,7 @@ def test_internal_memory_delete_uses_sqlite_backend(monkeypatch, tmp_path) -> No
         )
     )
 
-    response = api_main.delete_internal_memory_by_user("instagram", "user-1")
+    response = api_main.delete_internal_memory_by_user("instagram", "user-1", _=None)
 
     assert response.deleted is True
 
@@ -90,7 +90,7 @@ def test_internal_memory_delete_empty_uses_sqlite_backend(monkeypatch, tmp_path)
         )
     )
 
-    response = api_main.delete_empty_internal_memories()
+    response = api_main.delete_empty_internal_memories(_=None)
 
     assert response.deleted_count == 1
 

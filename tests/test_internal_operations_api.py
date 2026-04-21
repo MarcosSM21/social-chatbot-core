@@ -70,6 +70,7 @@ def test_list_recent_operational_events(monkeypatch) -> None:
     response = api_main.list_recent_operational_events(
         limit=10,
         platform="instagram",
+        _=None,
     )
 
     assert response.count == 1
@@ -94,7 +95,7 @@ def test_get_operational_summary(monkeypatch) -> None:
         FakeExternalTraceRepository,
     )
 
-    response = api_main.get_operational_summary(platform="instagram")
+    response = api_main.get_operational_summary(platform="instagram", _=None)
 
     assert response.platform == "instagram"
     assert response.total == 3

@@ -166,4 +166,25 @@ class OperationalSummaryResponse(BaseModel):
     operational_error_type_counts: dict[str, int]
 
 
+class CharacterSummaryResponse(BaseModel):
+    character_id: str
+    display_name: str
+    file_path: str
+
+class CharacterListResponse(BaseModel):
+    count: int
+    characters: list[CharacterSummaryResponse]
+
+class ActiveCharacterResponse(BaseModel):
+    character_id: str
+    display_name: str
+    file_path: str | None = None
+    is_default: bool
+    load_status: str
+    load_detail: str | None = None
+
+    
+
+    
+
 

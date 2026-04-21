@@ -1,0 +1,50 @@
+[
+  {
+    "character_file": "characters/leo_realistic_friend.json",
+    "character_id": "leo_realistic_friend",
+    "character_name": "Leo",
+    "provider": "ollama",
+    "user_message": "te acuerdas de cómo me llamo?",
+    "assistant_message": "Sí, claro. Me llamaste Daniel.",
+    "memory_after_turn": {
+      "platform": "instagram",
+      "external_user_id": "character-comparison-user",
+      "user_profile": null,
+      "conversation_summary": "User said: te acuerdas de cómo me llamo? Assistant replied: Sí, claro. Me llamaste Daniel.",
+      "stable_facts": [],
+      "preferences": [],
+      "relationship_notes": [],
+      "updated_at": "2026-04-19T09:21:09.470658+00:00"
+    },
+    "session_metadata": {
+      "memory_loaded": false,
+      "memory_updated": true,
+      "style_preset": "short_direct_calm",
+      "safety_validation_status": "passed"
+    }
+  },
+  {
+    "character_file": "characters/laia_ambitious_model.json",
+    "character_id": "laia_ambitious_model",
+    "character_name": "Laia",
+    "provider": "ollama",
+    "user_message": "te acuerdas de cómo me llamo?",
+    "assistant_message": "¡Ay nooo! ¡Claro que sí, Daniel! ¿Qué te trae por aquí? 😉",
+    "memory_after_turn": {
+      "platform": "instagram",
+      "external_user_id": "character-comparison-user",
+      "user_profile": null,
+      "conversation_summary": "User said: te acuerdas de cómo me llamo? Assistant replied: Sí, claro. Me llamaste Daniel.\nUser said: te acuerdas de cómo me llamo? Assistant replied: ¡Ay nooo! ¡Claro que sí, Daniel! ¿Qué te trae por aquí? 😉",
+      "stable_facts": [],
+      "preferences": [],
+      "relationship_notes": [],
+      "updated_at": "2026-04-19T09:21:10.768409+00:00"
+    },
+    "session_metadata": {
+      "memory_loaded": true,
+      "memory_updated": true,
+      "style_preset": "short_direct_calm",
+      "safety_validation_status": "passed"
+    }
+  }
+]

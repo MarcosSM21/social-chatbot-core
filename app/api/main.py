@@ -1,8 +1,9 @@
 import hashlib
 import hmac
 import json
+import time
 
-from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
@@ -21,6 +22,9 @@ from app.api.schemas import (
     OperationalEventListResponse,
     OperationalEventResponse,
     OperationalSummaryResponse,
+    CharacterListResponse,
+    CharacterSummaryResponse,
+    ActiveCharacterResponse,
 )
 
 from app.channels.http_channel_result import HttpChannelResult
@@ -44,6 +48,7 @@ from app.models.provider_raw_payload import ProviderRawPayloadRecord
 from app.storage.provider_raw_payload_repository import ProviderRawPayloadRepository
 from app.outbound.instagram_sender import InstagramOutboundSender
 from app.outbound.result import OutboundSendResult
+from app.storage.character_repository import CharacterRepository
 
 
 
@@ -57,6 +62,7 @@ app = FastAPI(
 )
 
 settings = Settings.from_env()
+_instagram_last_reply_by_user: dict[str, float] = {}
 
 
 ###### RUTAS AUXILIARES ##########
@@ -175,12 +181,17 @@ def privacy_policy() -> HTMLResponse:
     return HTMLResponse(content=html)
 
 ###########################################
+############### SAFETY INTERNO################
+
+def require_internal_api_key(x_internal_api_key: str | None = Header(default=None, alias="X-Internal-API-Key")) -> None:
+    if x_internal_api_key != settings.internal_api_key:
+        raise HTTPException(status_code=403, detail="Invalid internal API key")
 
 
 ########### MENSAJES INTERNOS  ########################
 
 @app.post("/internal/messages", response_model=MessageResponse)
-def create_internal_message(request: MessageRequest) -> MessageResponse:
+def create_internal_message(request: MessageRequest, _: None = Depends(require_internal_api_key)) -> MessageResponse:
     
     event = ExternalMessageEvent(
         platform="api",
@@ -213,7 +224,7 @@ def create_internal_message(request: MessageRequest) -> MessageResponse:
 
 
 @app.delete("/internal/memory/empty", response_model=UserMemoryCleanupResponse)
-def delete_empty_internal_memories() -> UserMemoryCleanupResponse:
+def delete_empty_internal_memories(_: None = Depends(require_internal_api_key)) -> UserMemoryCleanupResponse:
     memory_repository = build_user_memory_repository(settings)
     deleted_count = memory_repository.delete_empty_memories()
 
@@ -224,7 +235,7 @@ def delete_empty_internal_memories() -> UserMemoryCleanupResponse:
 
 
 @app.get("/internal/memory/{platform}", response_model=UserMemoryListResponse)
-def list_internal_memory_by_platform(platform: str) -> UserMemoryListResponse:
+def list_internal_memory_by_platform(platform: str,_: None = Depends(require_internal_api_key)) -> UserMemoryListResponse:
     memory_repository = build_user_memory_repository(settings)
     memories = memory_repository.list_by_platform(platform)
 
@@ -237,7 +248,7 @@ def list_internal_memory_by_platform(platform: str) -> UserMemoryListResponse:
     )
 
 @app.get("/internal/memory/{platform}/{external_user_id}", response_model=UserMemoryResponse)
-def get_internal_memory_by_user(platform: str, external_user_id: str) -> UserMemoryResponse:
+def get_internal_memory_by_user(platform: str, external_user_id: str,_: None = Depends(require_internal_api_key)) -> UserMemoryResponse:
     memory_repository = build_user_memory_repository(settings)
     memory = memory_repository.get_by_user(platform=platform, external_user_id=external_user_id)
 
@@ -248,7 +259,7 @@ def get_internal_memory_by_user(platform: str, external_user_id: str) -> UserMem
 
 
 @app.delete("/internal/memory/{platform}/{external_user_id}", response_model=UserMemoryDeleteResponse)
-def delete_internal_memory_by_user( platform: str, external_user_id: str) -> UserMemoryDeleteResponse:
+def delete_internal_memory_by_user( platform: str, external_user_id: str, _: None = Depends(require_internal_api_key)) -> UserMemoryDeleteResponse:
     memory_repository = build_user_memory_repository(settings)
     deleted = memory_repository.delete_by_user( platform=platform, external_user_id=external_user_id)
 
@@ -262,6 +273,46 @@ def delete_internal_memory_by_user( platform: str, external_user_id: str) -> Use
         detail="User memory deleted",
     )
 
+
+########################## PERSONAJES INTERNOS ##############################
+
+
+@app.get("/internal/characters", response_model=CharacterListResponse)
+def list_internal_characters(_:None = Depends(require_internal_api_key)) -> CharacterListResponse:
+    character_repository = CharacterRepository()
+    characters = character_repository.list_characters()
+
+    character_responses = [
+        CharacterSummaryResponse(
+            character_id=character.character_id,
+            display_name=character.display_name,
+            file_path=character.file_path,
+        )
+        for character in characters
+    ]
+
+    return CharacterListResponse(
+        count=len(character_responses),
+        characters=character_responses
+    )
+
+
+@app.get("/internal/characters/active", response_model=ActiveCharacterResponse)
+def get_active_internal_character(_:None = Depends(require_internal_api_key)) -> ActiveCharacterResponse:
+    character_repository = CharacterRepository()
+    result = character_repository.load_by_file_path_with_status(settings.character_file)
+
+    is_default =result.character.character_id == "default"
+
+    return ActiveCharacterResponse(
+        character_id=result.character.character_id,
+        display_name=result.character.display_name,
+        file_path=None if is_default else settings.character_file,
+        is_default=is_default,
+        load_status=result.status,
+        load_detail=result.detail,
+    )
+
 ############################################################################
 
 
@@ -271,6 +322,7 @@ def delete_internal_memory_by_user( platform: str, external_user_id: str) -> Use
 def list_recent_operational_events(
     limit: int = Query(default=20, ge=1, le=100),
     platform: str | None = None,
+    _: None = Depends(require_internal_api_key),
 ) -> OperationalEventListResponse:
     
     trace_repository = ExternalTraceRepository()
@@ -288,7 +340,7 @@ def list_recent_operational_events(
 
 
 @app.get("/internal/operations/summary", response_model=OperationalSummaryResponse)
-def get_operational_summary(platform: str | None = None) -> OperationalSummaryResponse:
+def get_operational_summary(platform: str | None = None, _: None = Depends(require_internal_api_key)) -> OperationalSummaryResponse:
     trace_repository = ExternalTraceRepository()
     summary = trace_repository.summarize_records(platform=platform)
 
@@ -387,6 +439,18 @@ async def receive_instagram_webhook_message(request: Request) -> WebhookEventRes
                 status="accepted",
                 detail="Instagram message captured, but bot is disabled. No response was sent.",
             )
+        
+        if not _is_instagram_user_allowed(external_event.user_id):
+            _save_user_not_allowed_trace(trace_repository, external_event)
+            return WebhookEventResponse(status="accepted", detail="Instagram message captured, but user is not allowed. No response was sent.")
+
+        if _is_instagram_user_rate_limited(external_event.user_id):
+            _save_rate_limited_trace(trace_repository, external_event)
+            return WebhookEventResponse(
+                status="accepted",
+                detail = "Instagram message captured, but user is rate limited. No response was sent"
+            )
+
 
         try:
             channel_result, send_result = _process_and_send_external_event(external_event)
@@ -398,6 +462,9 @@ async def receive_instagram_webhook_message(request: Request) -> WebhookEventRes
             )
 
         _save_processed_trace(trace_repository, external_event, channel_result, send_result)
+
+        if send_result.status == "sent":
+            _remember_instagram_reply(external_event.user_id)
 
 
 
@@ -612,7 +679,55 @@ def _save_bot_disabled_trace(
             operational_error_type=None,
             operational_detail="BOT_ENABLED=false. Message was captured without generating or sending a response.",
         )
-    )  
+    ) 
+
+def _save_user_not_allowed_trace(
+    trace_repository: ExternalTraceRepository,
+    external_event: ExternalMessageEvent,
+) -> None:
+    trace_repository.save_records(
+        ExternalTraceRecord(
+            platform="instagram",
+            external_conversation_id=external_event.conversation_id,
+            external_user_id=external_event.user_id,
+            internal_session_id=None,
+            incoming_message_text=external_event.message_text,
+            outgoing_message_text=None,
+            inbound_status="captured",
+            outbound_status="not_sent",
+            detail="Inbound Instagram message captured, but user is not allowed.",
+            provider_message_id=external_event.message_id,
+            outbound_message_id=None,
+            operational_status="user_not_allowed",
+            operational_error_type=None,
+            operational_detail="INSTAGRAM_ALLOWED_USER_IDS is configured and this user is not included.",
+        )
+    )
+
+def _save_rate_limited_trace(
+    trace_repository: ExternalTraceRepository,
+    external_event: ExternalMessageEvent,
+) -> None:
+    trace_repository.save_records(
+        ExternalTraceRecord(
+            platform="instagram",
+            external_conversation_id=external_event.conversation_id,
+            external_user_id=external_event.user_id,
+            internal_session_id=None,
+            incoming_message_text=external_event.message_text,
+            outgoing_message_text=None,
+            inbound_status="captured",
+            outbound_status="not_sent",
+            detail="Inbound Instagram message captured, but user is rate limited.",
+            provider_message_id=external_event.message_id,
+            outbound_message_id=None,
+            operational_status="rate_limited",
+            operational_error_type=None,
+            operational_detail="INSTAGRAM_REPLY_COOLDOWN_SECONDS prevented an automatic response.",
+        )
+    )
+
+
 
 
 
@@ -673,4 +788,41 @@ def _to_operational_event_response(record: ExternalTraceRecord) -> OperationalEv
         style_preset=record.style_preset,
         safety_validation_status=record.safety_validation_status,
     )
+
+
+###############
+
+def _is_instagram_user_allowed(external_user_id: str) -> bool:
+    allowed_user_ids = settings.instagram_allowed_user_ids
+
+    if not allowed_user_ids:
+        return True
+    
+    return external_user_id in allowed_user_ids
+
+
+def _is_instagram_user_rate_limited(external_user_id: str) -> bool:
+    cooldown_seconds = settings.instagram_reply_cooldown_seconds
+
+    if cooldown_seconds <= 0:
+        return False
+    
+    last_reply_at = _instagram_last_reply_by_user.get(external_user_id)
+
+    if last_reply_at is None:
+        return False
+    
+    elapsed_seconds = time.monotonic() - last_reply_at
+
+    return elapsed_seconds < cooldown_seconds
+
+def _remember_instagram_reply(external_user_id: str) -> None:
+    if settings.instagram_reply_cooldown_seconds <= 0:
+        return
+    
+    _instagram_last_reply_by_user[external_user_id] = time.monotonic()
+
+
+
+
  

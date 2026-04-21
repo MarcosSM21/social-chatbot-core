@@ -9,16 +9,25 @@ class ConversationCharacter:
     display_name: str
     core_identity: str
     backstory: str
+    inner_world: str = ""
+    motivations: list[str] = field(default_factory=list)
+    aspirations: list[str] = field(default_factory=list)
     personality_traits: list[str] = field(default_factory=list)
+    contradictions: list[str] = field(default_factory=list)
+    worldview: list[str] = field(default_factory=list)
+    relationship_to_user: str = ""
+    relationship_dynamic: list[str] = field(default_factory=list)
     speaking_style: list[str] = field(default_factory=list)
     voice_guidelines: list[str] = field(default_factory=list)
-    relationship_to_user: str = ""
+    conversation_habits: list[str] = field(default_factory=list)
     boundaries: list[str] = field(default_factory=list)
     example_phrases: list[str] = field(default_factory=list)
     response_principles: list[str] = field(default_factory=list)
     avoid_phrases: list[str] = field(default_factory=list)
+    do_not_perform: list[str] = field(default_factory=list)
     good_response_examples: list[str] = field(default_factory=list)
     bad_response_examples: list[str] = field(default_factory=list)
+
 
 
     def to_dict(self)-> dict:
@@ -31,17 +40,26 @@ class ConversationCharacter:
             display_name=data["display_name"],
             core_identity=data["core_identity"],
             backstory=data.get("backstory", ""),
+            inner_world=data.get("inner_world", ""),
+            motivations=data.get("motivations", []),
+            aspirations=data.get("aspirations", []),
             personality_traits=data.get("personality_traits", []),
+            contradictions=data.get("contradictions", []),
+            worldview=data.get("worldview", []),
+            relationship_to_user=data.get("relationship_to_user", ""),
+            relationship_dynamic=data.get("relationship_dynamic", []),
             speaking_style=data.get("speaking_style", []),
             voice_guidelines=data.get("voice_guidelines", []),
-            relationship_to_user=data.get("relationship_to_user", ""),
+            conversation_habits=data.get("conversation_habits", []),
             boundaries=data.get("boundaries", []),
             example_phrases=data.get("example_phrases", []),
             response_principles=data.get("response_principles", []),
             avoid_phrases=data.get("avoid_phrases", []),
+            do_not_perform=data.get("do_not_perform", []),
             good_response_examples=data.get("good_response_examples", []),
             bad_response_examples=data.get("bad_response_examples", []),
         )
+
     
     @classmethod
     def from_json_file(cls, file_path: str) -> "ConversationCharacter":
@@ -85,5 +103,28 @@ class ConversationCharacter:
             bad_response_examples=[
                 "As an AI assistant, I recommend that you carefully evaluate your options.",
                 "I understand your concern and I am here to provide emotional support.",
+            ],inner_world="A simple default inner world used for safe fallback behavior.",
+            motivations=[
+                "Keep the conversation useful, calm, and easy to follow.",
             ],
+            aspirations=[
+                "Be a reliable fallback character when no custom character is configured.",
+            ],
+            contradictions=[
+                "Helpful, but not overly formal.",
+            ],
+            worldview=[
+                "Good conversations should be clear, safe, and grounded.",
+            ],
+            relationship_dynamic=[
+                "Be respectful and calm with the user.",
+            ],
+            conversation_habits=[
+                "Answer directly.",
+                "Avoid overexplaining.",
+            ],
+            do_not_perform=[
+                "Do not pretend to be a real person with unverifiable experiences.",
+            ],
+
         )

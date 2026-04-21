@@ -998,3 +998,304 @@ Instagram listen-only flow
       -> no Instagram outbound send
 
 The main gain of this phase is operational clarity. The system can now be connected to real Instagram traffic in a safer way: first in listen-only mode, then with replies enabled once delivery and parsing are confirmed. This keeps the project practical and avoids overbuilding observability while still giving enough visibility to diagnose real failures quickly.
+
+
+## Status (XVIII)
+
+Phase 13 completed: controlled production mode.
+
+This phase adds the first production-control guardrails around the Instagram bot. The goal is not full enterprise security yet, but a practical controlled mode: internal endpoints are no longer openly callable, the bot can be restricted to selected Instagram users, bursts from the same user can be cooled down, and there is a checklist for safely moving from listen-only mode to real replies.
+
+The project now provides:
+
+- internal API key protection through:
+  - `INTERNAL_API_KEY`
+  - `X-Internal-API-Key`
+- protected internal endpoints:
+  - `POST /internal/messages`
+  - `GET /internal/memory/{platform}`
+  - `GET /internal/memory/{platform}/{external_user_id}`
+  - `DELETE /internal/memory/{platform}/{external_user_id}`
+  - `DELETE /internal/memory/empty`
+  - `GET /internal/operations/events`
+  - `GET /internal/operations/summary`
+- Instagram response allowlist through:
+  - `INSTAGRAM_ALLOWED_USER_IDS`
+- explicit traces for non-allowed users:
+  - `operational_status="user_not_allowed"`
+- basic anti-spam cooldown through:
+  - `INSTAGRAM_REPLY_COOLDOWN_SECONDS`
+- explicit traces for rate-limited users:
+  - `operational_status="rate_limited"`
+- controlled activation checklist:
+  - `docs/production_control_checklist.md`
+- tests covering:
+  - internal API key validation
+  - allowlist behavior
+  - user-not-allowed traces
+  - cooldown/rate-limit behavior
+  - rate-limited traces
+
+## Controlled Production Usage
+
+For internal endpoints, include:
+
+```bash
+curl \
+  -H "X-Internal-API-Key: <INTERNAL_API_KEY>" \
+  "http://localhost:8000/internal/operations/summary?platform=instagram"
+```
+
+To reply only to controlled users:
+
+```env
+BOT_ENABLED=true
+INSTAGRAM_ALLOWED_USER_IDS=<allowed_instagram_user_id>
+INSTAGRAM_REPLY_COOLDOWN_SECONDS=10
+```
+
+To temporarily observe real traffic without replying:
+
+```env
+BOT_ENABLED=false
+```
+
+After changing these values, restart FastAPI so settings are reloaded.
+
+## Implemented architecture
+
+Internal API protection
+   -> X-Internal-API-Key
+   -> require_internal_api_key
+   -> protected /internal/* endpoints
+
+Controlled Instagram reply flow
+   -> POST /providers/instagram/webhook/messages
+   -> signature validation
+   -> duplicate detection
+   -> BOT_ENABLED check
+   -> INSTAGRAM_ALLOWED_USER_IDS check
+   -> INSTAGRAM_REPLY_COOLDOWN_SECONDS check
+   -> HttpChannelAdapter
+   -> ConversationService
+   -> InstagramOutboundSender
+   -> ExternalTraceRepository
+
+Non-reply controlled outcomes
+   -> bot disabled
+      -> operational_status=bot_disabled
+   -> user not allowed
+      -> operational_status=user_not_allowed
+   -> user rate limited
+      -> operational_status=rate_limited
+
+The main gain of this phase is safer activation. The bot can now be connected to a public webhook while keeping internal tools protected and limiting who receives automatic replies. This gives the project a much better footing for the next phase: improving the actual conversational quality with real controlled traffic.
+
+
+## Status (XIX)
+
+Phase 14 completed: character-driven conversation quality.
+
+This phase focuses on understanding and improving the real prompt sent to the LLM. The goal is no longer just to have a bot that replies, but to make the conversational identity explicit, inspectable and easy to tune. The active character is now the main source of voice, personality, boundaries and relationship dynamic, while global style rules stay intentionally small and subordinate.
+
+The project now provides:
+
+- prompt inspection tooling:
+  - `scripts/inspect_llm_prompt.py`
+- character comparison tooling:
+  - `scripts/compare_characters.py`
+- a deeper `ConversationCharacter` model with:
+  - `inner_world`
+  - `motivations`
+  - `aspirations`
+  - `contradictions`
+  - `worldview`
+  - `relationship_dynamic`
+  - `conversation_habits`
+  - `response_principles`
+  - `avoid_phrases`
+  - `do_not_perform`
+- compact character brief generation in:
+  - `ConversationContextBuilder`
+- two realistic character files for comparison:
+  - `characters/leo_realistic_friend.json`
+  - `characters/laia_ambitious_model.json`
+- tests covering:
+  - extended character loading
+  - prompt inspection
+  - removal of `BOT_NAME` as LLM identity
+  - character identity as the main prompt source
+  - character comparison switching
+
+## Character Prompt Usage
+
+To inspect the exact messages that would be sent to the LLM:
+
+```bash
+.venv/bin/python scripts/inspect_llm_prompt.py \
+  --message "holaa, qué tal?" \
+  --format markdown
+```
+
+To compare two characters with the same user message:
+
+```bash
+.venv/bin/python scripts/compare_characters.py \
+  --message "holaa, cómo estás?" \
+  --provider mock
+```
+
+To compare with Ollama:
+
+```bash
+.venv/bin/python scripts/compare_characters.py \
+  --message "holaa, cómo estás?" \
+  --provider ollama
+```
+
+The active runtime character is still selected through:
+
+```env
+CHARACTER_FILE=characters/leo_realistic_friend.json
+```
+
+or:
+
+```env
+CHARACTER_FILE=characters/laia_ambitious_model.json
+```
+
+## Implemented architecture
+
+Prompt construction flow
+   -> ConversationService
+   -> ConversationContextBuilder
+      -> system instructions
+      -> safety instructions
+      -> active character
+      -> compact character brief
+      -> subordinate global style constraints
+      -> user memory
+      -> recent conversation history
+   -> LocalLLMGenerationProvider
+      -> build_prompt_messages
+      -> Ollama-compatible messages
+
+Character tuning flow
+   -> characters/*.json
+   -> ConversationCharacter
+   -> ConversationContextBuilder
+   -> scripts/inspect_llm_prompt.py
+   -> scripts/compare_characters.py
+   -> evaluation by manual review
+
+The main gain of this phase is conversational control. We can now change the bot's perceived personality by editing a character JSON instead of touching core code. This keeps the architecture flexible while making the creative part of the project visible and testable. The next natural step is to professionalize character runtime selection and eventually decide whether `ConversationStyle` should disappear as a separate voice layer once the character files fully own tone and identity.
+
+
+## Status (XX)
+
+Phase 15 completed: character runtime and internal character visibility.
+
+This phase professionalizes how characters are loaded and inspected. The project no longer relies only on scattered direct JSON loading from the context builder. Character files now have a small repository layer, the active character can be inspected from the internal API, and load failures are explicit instead of silently falling back to the default character without explanation.
+
+The project now provides:
+
+- character repository:
+  - `app/storage/character_repository.py`
+- lightweight character summaries:
+  - `CharacterSummary`
+- explicit character load results:
+  - `CharacterLoadResult`
+- character load statuses:
+  - `loaded`
+  - `file_not_found`
+  - `invalid_json`
+  - `missing_required_field`
+  - `invalid_character_data`
+- internal endpoint for listing available characters:
+  - `GET /internal/characters`
+- internal endpoint for inspecting the active character:
+  - `GET /internal/characters/active`
+- active character diagnostics:
+  - `is_default`
+  - `load_status`
+  - `load_detail`
+- `ConversationContextBuilder` now loads the active character through:
+  - `CharacterRepository`
+- tests covering:
+  - character listing
+  - loading by file path
+  - loading by character id
+  - fallback behavior
+  - invalid JSON handling
+  - missing required fields
+  - internal character endpoints
+  - prompt inspection compatibility
+  - character comparison compatibility
+
+## Character Runtime Usage
+
+To list available characters:
+
+```bash
+curl \
+  -H "X-Internal-API-Key: <INTERNAL_API_KEY>" \
+  "http://localhost:8000/internal/characters"
+```
+
+To inspect the active runtime character:
+
+```bash
+curl \
+  -H "X-Internal-API-Key: <INTERNAL_API_KEY>" \
+  "http://localhost:8000/internal/characters/active"
+```
+
+Example active character response:
+
+```json
+{
+  "character_id": "leo_realistic_friend",
+  "display_name": "Leo",
+  "file_path": "characters/leo_realistic_friend.json",
+  "is_default": false,
+  "load_status": "loaded",
+  "load_detail": null
+}
+```
+
+If the configured character file is missing or invalid, the system falls back safely:
+
+```json
+{
+  "character_id": "default",
+  "display_name": "SocialBot",
+  "file_path": null,
+  "is_default": true,
+  "load_status": "file_not_found",
+  "load_detail": "Character file was not found."
+}
+```
+
+## Implemented architecture
+
+Character runtime flow
+   -> CHARACTER_FILE
+   -> CharacterRepository
+      -> load_by_file_path_with_status
+      -> CharacterLoadResult
+      -> ConversationCharacter
+   -> ConversationContextBuilder
+      -> compact character brief
+   -> LocalLLMGenerationProvider
+
+Internal character inspection flow
+   -> X-Internal-API-Key
+   -> GET /internal/characters
+      -> CharacterRepository.list_characters
+      -> CharacterListResponse
+   -> GET /internal/characters/active
+      -> CharacterRepository.load_by_file_path_with_status
+      -> ActiveCharacterResponse
+
+The main gain of this phase is runtime clarity. Character files are still simple JSON documents, but the system now treats them as managed runtime assets instead of loose files. This makes character iteration safer and prepares the project for future work such as cleaner style removal, per-environment character selection, per-user character assignment, or controlled runtime switching.
