@@ -3,7 +3,6 @@ from app.models.chat import ChatMessage, ChatTurn
 from app.models.conversation_safety import ConversationSafetyPolicy
 from app.models.conversation_context import ConversationContext
 from app.storage.user_memory_repository import UserMemoryRepository
-from app.models.conversation_style import ConversationStyle
 from app.models.conversation_character import ConversationCharacter
 from app.storage.character_repository import CharacterRepository
 
@@ -19,8 +18,6 @@ class ConversationContextBuilder:
 
         user_memory = self.user_memory_repository.get_or_create(platform=platform, external_user_id=external_user_id)
 
-        style = self._build_conversation_style()
-        style_rules = self._build_style_rules()
         safety_policy = self._build_safety_policy()
         character = self._build_character()
 
@@ -32,11 +29,6 @@ class ConversationContextBuilder:
             safety_instructions=self._build_safety_instructions(safety_policy),
             character=character,
             character_instructions=self._build_character_instructions(character),
-            style=style,
-            style_instructions=self._build_style_instructions(
-                style=style,
-                style_rules=style_rules
-            ),
             user_profile=user_memory.user_profile,
             conversation_summary=user_memory.conversation_summary,            
             stable_facts=user_memory.stable_facts,
@@ -66,27 +58,6 @@ class ConversationContextBuilder:
             f"Prevent false memory claims: {safety_policy.prevent_false_memory_claims}. "
             f"Avoid sensitive memory storage: {safety_policy.avoid_sensitive_memory_storage}. "
             f"{rules_text}"
-        )
-
-
-    def _build_conversation_style(self) -> ConversationStyle:
-        return ConversationStyle.from_preset(self.settings.style_preset)
-    
-    def _build_style_rules(self) -> list[str]:
-        return [
-            "Keep replies natural, concise and suitable for a private chat. ",
-            "Do not overexplain unless the user clearly asks for detail. ",
-            "Do not override the active character voice."
-        ]
-
-
-    def _build_style_instructions(self, style: ConversationStyle, style_rules: list[str]) -> str:
-        rules_text = " ".join(style_rules)
-
-        return (
-            "Global style constraints: "
-            f"{rules_text} "
-            "The active character instructions are the main source of identity, tone, and voice. "
         )
     
     def _build_character(self) -> ConversationCharacter:
@@ -158,7 +129,7 @@ class ConversationContextBuilder:
         if not selected_items: 
             return "- none"
         
-        return "\n".join(f"-{item}" for item in selected_items)
+        return "\n".join(f"- {item}" for item in selected_items)
 
 
 

@@ -3,7 +3,6 @@ from typing import Any
 
 from app.models.chat import ChatMessage, ChatTurn
 from app.models.conversation_safety import ConversationSafetyPolicy
-from app.models.conversation_style import ConversationStyle
 from app.models.conversation_character import ConversationCharacter
 
 
@@ -16,8 +15,6 @@ class ConversationContext:
     safety_instructions: str
     character: ConversationCharacter
     character_instructions: str
-    style: ConversationStyle
-    style_instructions: str
     user_profile: str | None = None
     conversation_summary: str | None = None
     stable_facts: list[str] | None = None
@@ -34,8 +31,6 @@ class ConversationContext:
             "safety_instructions": self.safety_instructions,
             "character": self.character.to_dict(),
             "character_instructions": self.character_instructions,
-            "style": self.style.to_dict(),
-            "style_instructions": self.style_instructions,
             "user_profile": self.user_profile,
             "conversation_summary": self.conversation_summary,
             "stable_facts": self.stable_facts,

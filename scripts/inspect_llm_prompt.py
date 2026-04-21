@@ -35,7 +35,6 @@ def build_prompt_preview(message: str, platform: str, external_user_id: str, ses
             "character_id": context.character.character_id,
             "display_name": context.character.display_name,
         },
-        "style": context.style.to_dict(),
         "memory": {
             "user_profile": context.user_profile,
             "conversation_summary": context.conversation_summary,

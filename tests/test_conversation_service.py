@@ -43,12 +43,12 @@ def test_conversation_service_updates_normal_memory(tmp_path) -> None:
     assert turn.session_metadata["memory_updated"] is True
     assert turn.session_metadata["memory_profile_status"] == "passed"
     assert turn.session_metadata["memory_summary_status"] == "passed"
-    assert turn.session_metadata["style_preset"]
     assert turn.session_metadata["safety_policy_active"] is True
     assert turn.session_metadata["safety_validation_status"] == "passed"
     assert turn.session_metadata["character_id"]
     assert turn.session_metadata["character_name"]
     assert turn.session_metadata["character_snapshot"]
+    assert "style_preset" not in turn.session_metadata
 
 
 
