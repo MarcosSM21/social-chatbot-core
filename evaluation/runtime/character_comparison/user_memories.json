@@ -1,0 +1,22 @@
+[
+  {
+    "platform": "instagram",
+    "external_user_id": "test-user-leo",
+    "user_profile": null,
+    "conversation_summary": "User said: holaa Assistant replied: Willy: Hello. Nice to talk to you. You said: holaa",
+    "stable_facts": [],
+    "preferences": [],
+    "relationship_notes": [],
+    "updated_at": "2026-04-21T06:06:46.742748+00:00"
+  },
+  {
+    "platform": "instagram",
+    "external_user_id": "test-user-laia",
+    "user_profile": null,
+    "conversation_summary": "User said: holaa Assistant replied: Willy: Hello. Nice to talk to you. You said: holaa",
+    "stable_facts": [],
+    "preferences": [],
+    "relationship_notes": [],
+    "updated_at": "2026-04-21T06:06:46.743211+00:00"
+  }
+]
