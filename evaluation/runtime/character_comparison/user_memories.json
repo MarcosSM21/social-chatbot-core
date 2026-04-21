@@ -3,20 +3,20 @@
     "platform": "instagram",
     "external_user_id": "test-user-leo",
     "user_profile": null,
-    "conversation_summary": "User said: holaa Assistant replied: Willy: Hello. Nice to talk to you. You said: holaa",
+    "conversation_summary": "Recent conversation context: holaa",
     "stable_facts": [],
     "preferences": [],
     "relationship_notes": [],
-    "updated_at": "2026-04-21T07:08:16.421841+00:00"
+    "updated_at": "2026-04-21T09:56:56.021081+00:00"
   },
   {
     "platform": "instagram",
     "external_user_id": "test-user-laia",
     "user_profile": null,
-    "conversation_summary": "User said: holaa Assistant replied: Willy: Hello. Nice to talk to you. You said: holaa",
+    "conversation_summary": "Recent conversation context: holaa",
     "stable_facts": [],
     "preferences": [],
     "relationship_notes": [],
-    "updated_at": "2026-04-21T07:08:16.422309+00:00"
+    "updated_at": "2026-04-21T09:56:56.021463+00:00"
   }
 ]
