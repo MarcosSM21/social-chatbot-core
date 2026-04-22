@@ -17,10 +17,20 @@ venv/
 # IDE
 .vscode/
 .idea/
+.codex
 
 # OS files
 .DS_Store
 Thumbs.db
 
-#Local data
+# Local runtime data
 data/
+*.sqlite3
+*.db
+
+# Evaluation generated outputs
+evaluation/runtime/
+evaluation/reports/
+
+# Generated caches
+**/__pycache__/
