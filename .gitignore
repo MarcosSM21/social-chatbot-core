@@ -17,6 +17,8 @@ venv/
 # IDE
 .vscode/
 .idea/
+
+# Local Codex/session files
 .codex
 
 # OS files
