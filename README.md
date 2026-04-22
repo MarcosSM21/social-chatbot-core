@@ -1581,3 +1581,34 @@ RuleBasedMemorySummarizer
 The summarizer is now more useful than before, but it is still rule-based. It can capture simple continuity, but it cannot deeply understand emotional nuance or produce a rich evolving user model. The architecture is ready for a future `LLMMemorySummarizer`, but this phase intentionally keeps memory summarization deterministic and easy to inspect.
 
 The main gain of this phase is confidence in continuity. The bot no longer only proves that it can reply to one message. It can now be evaluated through a longer conversation where memory, safety, character, and conversational flow interact.
+
+
+## Status (XXIV)
+
+Phase 19 completed: operational cleanup and real-operation preparation.
+
+This phase focuses on repository hygiene and operational clarity. The goal was to make it obvious which files are source code, which files are real runtime data, which files are temporary evaluation outputs, and how to start the system safely for real Instagram DM operation.
+
+The project now provides:
+
+- explicit data/storage documentation:
+  - `docs/data_and_evaluation_storage.md`
+- real operation startup checklist:
+  - `docs/real_operation_startup_checklist.md`
+- evaluation checklist:
+  - `docs/evaluation_checklist.md`
+
+## Git Tracking Policy
+
+These files should be committed:
+
+```text
+docs/data_and_evaluation_storage.md
+docs/real_operation_startup_checklist.md
+docs/evaluation_checklist.md
+```
+
+They are project documentation, not generated output.
+
+
+The main gain of this phase is operational confidence. The project is now easier to run, evaluate, and maintain without mixing real user data, temporary evaluation artifacts, and source-controlled project files.
