@@ -1597,6 +1597,14 @@ The project now provides:
   - `docs/real_operation_startup_checklist.md`
 - evaluation checklist:
   - `docs/evaluation_checklist.md`
+- clearer `.gitignore` policy for:
+  - `data/`
+  - `evaluation/runtime/`
+  - `evaluation/reports/`
+  - `.venv/`
+  - `.codex`
+  - `*.sqlite3`
+  - `*.db`
 
 ## Git Tracking Policy
 
@@ -1608,7 +1616,110 @@ docs/real_operation_startup_checklist.md
 docs/evaluation_checklist.md
 ```
 
-They are project documentation, not generated output.
+These folders should not be committed:
 
+```text
+data/
+evaluation/runtime/
+evaluation/reports/
+.venv/
+.codex
+```
+
+The latest full test suite also passes:
+
+```text
+120 passed
+```
 
 The main gain of this phase is operational confidence. The project is now easier to run, evaluate, and maintain without mixing real user data, temporary evaluation artifacts, and source-controlled project files.
+
+
+## Status (XXV)
+
+Phase 20 completed: model provider strategy and local GGUF import through Ollama.
+
+This phase improves model-provider clarity without changing the core Instagram chatbot architecture. The goal was to separate four concepts that are easy to mix together while experimenting with local models:
+
+- model source
+- model file format
+- runtime
+- Python generation provider
+
+The project now provides:
+
+- model/provider/runtime strategy documentation:
+  - `docs/model_provider_strategy.md`
+- richer evaluation metadata for comparing model runs:
+  - provider
+  - runtime
+  - model
+  - runtime endpoint
+  - provider class
+  - character file
+- explicit Ollama provider naming:
+  - `OllamaGenerationProvider`
+  - `app/providers/ollama_provider.py`
+- a safe placeholder for future direct Hugging Face local inference:
+  - `HuggingFaceLocalGenerationProvider`
+- Hugging Face-related settings with safe defaults:
+  - `HUGGINGFACE_MODEL_ID`
+  - `HUGGINGFACE_DEVICE`
+  - `HUGGINGFACE_MAX_NEW_TOKENS`
+  - `HUGGINGFACE_TEMPERATURE`
+- validation that a GGUF model downloaded from Hugging Face can be imported into Ollama and used by the project
+- successful local evaluation and real Instagram webhook testing with an imported Ollama model
+
+The local GGUF model tested in this phase was:
+
+```text
+/home/marcos/local-models/hauhau-gemma4-aggressive/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q4_K_M.gguf
+```
+
+The imported Ollama model name was:
+
+```text
+hauhau-gemma4-aggressive
+```
+
+## Implemented architecture
+
+Imported Hugging Face GGUF flow
+   -> local `.gguf` file from Hugging Face
+   -> Ollama `Modelfile`
+   -> `ollama create hauhau-gemma4-aggressive`
+   -> `OLLAMA_MODEL=hauhau-gemma4-aggressive`
+   -> `OllamaGenerationProvider`
+   -> `ResponseEngine`
+   -> existing `ConversationService`
+
+Future direct Hugging Face local-provider preparation
+   -> `Settings`
+      -> `HUGGINGFACE_*`
+   -> `HuggingFaceLocalGenerationProvider`
+      -> explicit `GenerationProviderError`
+      -> no heavy dependencies required by default
+      -> no model downloads during tests
+
+The latest full test suite also passes:
+
+```text
+120 passed
+```
+
+Current boundary:
+
+```text
+Direct Hugging Face runtime integration is intentionally deferred.
+The validated practical route for now is:
+Hugging Face GGUF -> Ollama -> OllamaGenerationProvider -> project.
+```
+
+Important safety note:
+
+```text
+The imported hauhau-gemma4-aggressive model is for local experimentation and evaluation only.
+It should not be used for real Instagram replies unless it goes through a separate safety and quality review.
+```
+
+The main gain of this phase is model-provider literacy. The project can now use a model downloaded from Hugging Face without requiring a direct Hugging Face Python runtime: the model file is imported into Ollama, and the existing Ollama provider keeps the application architecture stable.
