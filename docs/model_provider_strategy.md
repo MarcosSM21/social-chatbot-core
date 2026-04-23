@@ -456,15 +456,168 @@ Improve the chatbot now, but keep the architecture compatible with future self-h
 
 ## Near-Term Plan
 
-Recommended Phase 20 direction:
+Phase 20 result:
 
 ```text
-1. Document model/provider strategy
-2. Improve evaluation metadata for model comparisons
-3. Clarify or rename the current Ollama provider
-4. Design HuggingFaceLocalGenerationProvider
-5. Optionally implement an experimental Hugging Face provider
-6. Compare model quality through existing evaluation reports
+1. Document model/provider strategy: done
+2. Improve evaluation metadata for model comparisons: done
+3. Clarify or rename the current Ollama provider: done
+4. Design HuggingFaceLocalGenerationProvider: done
+5. Prepare future Hugging Face support safely: done
+6. Import a local Hugging Face GGUF model into Ollama: done
 ```
 
 The project should move toward provider flexibility without making the default setup heavy or fragile.
+
+Current boundary:
+
+```text
+Direct Hugging Face runtime integration is postponed on purpose.
+The practical validated route for now is importing GGUF models into Ollama and using them through OllamaGenerationProvider.
+```
+
+## Importing Local GGUF Models Through Ollama
+
+The project can use a model downloaded from Hugging Face without implementing a direct Hugging Face Python provider.
+
+The distinction is:
+
+```text
+Hugging Face = model source
+GGUF = local model file format
+Ollama = runtime that loads the model
+OllamaGenerationProvider = Python provider used by this project
+```
+
+So a Hugging Face GGUF model can still be used through:
+
+```env
+GENERATION_PROVIDER=ollama
+OLLAMA_MODEL=<imported-ollama-model-name>
+```
+
+### Tested Local GGUF Import
+
+The local model file tested in Phase 20 was:
+
+```text
+/home/marcos/local-models/hauhau-gemma4-aggressive/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q4_K_M.gguf
+```
+
+The Ollama model name used for the import was:
+
+```text
+hauhau-gemma4-aggressive
+```
+
+The `Modelfile` used this structure:
+
+```text
+FROM ./Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q4_K_M.gguf
+
+PARAMETER temperature 1.0
+PARAMETER top_p 0.95
+PARAMETER top_k 64
+PARAMETER num_ctx 32768
+```
+
+Create the Ollama model from the folder containing the `Modelfile`:
+
+```bash
+ollama create hauhau-gemma4-aggressive -f Modelfile
+```
+
+Check that it exists:
+
+```bash
+ollama list
+```
+
+Run a direct smoke test:
+
+```bash
+ollama run hauhau-gemma4-aggressive
+```
+
+### Compatibility Lesson
+
+The first attempted run failed with:
+
+```text
+unknown model architecture: 'gemma4'
+```
+
+That error meant the model import was not the main problem. The installed Ollama runner did not yet support the `gemma4` architecture exposed by the GGUF metadata.
+
+The fix was to update Ollama and recreate or rerun the imported model.
+
+Useful diagnostics:
+
+```bash
+ollama --version
+ollama show hauhau-gemma4-aggressive
+journalctl -u ollama -n 40 --no-pager
+```
+
+### Using The Imported Model In This Project
+
+After the model works with `ollama run`, configure the project with:
+
+```env
+GENERATION_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=hauhau-gemma4-aggressive
+ENABLE_PROVIDER_FALLBACK=false
+```
+
+For local testing, keep:
+
+```env
+BOT_ENABLED=false
+```
+
+This avoids sending real Instagram replies while evaluating the imported model.
+
+The internal API can test the conversational core with:
+
+```bash
+curl -X POST "http://localhost:8000/internal/messages" \
+  -H "Content-Type: application/json" \
+  -H "X-Internal-API-Key: dev-internal-api-key" \
+  -d '{
+    "session_id": "marcos-test",
+    "message": "holaa, que tal?"
+  }'
+```
+
+Important detail:
+
+```text
+/internal/messages expects message and session_id.
+It does not accept platform or external_user_id in the request body.
+```
+
+### Safety Boundary
+
+The tested model name includes `Uncensored` and `Aggressive`. Treat this as a controlled local experiment.
+
+Recommended use:
+
+```text
+local smoke tests
+local internal API tests
+evaluation reports
+provider comparison
+prompt behavior learning
+```
+
+Avoid:
+
+```text
+real Instagram replies
+open allowlist testing
+production-like operation
+fallback-enabled evaluation that hides model failures
+```
+
+Before using any new imported model with real users, run a separate quality and safety evaluation phase.

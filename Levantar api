@@ -1,1 +1,3 @@
 .venv/bin/uvicorn app.api.main:app --reload
+
+cloudflared tunnel --url http://localhost:8000
