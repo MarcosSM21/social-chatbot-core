@@ -11,8 +11,8 @@ from app.core.settings import Settings
 from app.engine.response_engine import ResponseEngine
 from app.models.chat import ChatMessage
 from app.providers.fallback_provider import FallbackGenerationProvider
-from app.providers.local_llm_provider import LocalLLMGenerationProvider
 from app.providers.mock_provider import MockGenerationProvider
+from app.providers.ollama_provider import OllamaGenerationProvider
 from app.services.assistant_response_safety_validator import AssistantResponseSafetyValidator
 from app.services.conversation_context_builder import ConversationContextBuilder
 from app.services.conversation_service import ConversationService
@@ -35,7 +35,7 @@ def build_generation_provider(settings: Settings):
     mock_provider = MockGenerationProvider(settings)
 
     if settings.generation_provider == "ollama":
-        ollama_provider = LocalLLMGenerationProvider(settings)
+        ollama_provider = OllamaGenerationProvider(settings)
 
         if settings.enable_provider_fallback:
             return FallbackGenerationProvider( primary_provider=ollama_provider, fallback_provider=mock_provider)

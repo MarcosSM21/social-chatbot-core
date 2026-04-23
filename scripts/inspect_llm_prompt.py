@@ -8,7 +8,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from app.core.settings import Settings
 from app.models.chat import ChatMessage
-from app.providers.local_llm_provider import LocalLLMGenerationProvider
+from app.providers.ollama_provider import OllamaGenerationProvider
 from app.services.conversation_context_builder import ConversationContextBuilder
 from app.storage.local_chat_repository import LocalChatRepository
 from app.storage.user_memory_repository import UserMemoryRepository
@@ -24,7 +24,7 @@ def build_prompt_preview(message: str, platform: str, external_user_id: str, ses
     context_builder = ConversationContextBuilder(settings=settings, user_memory_repository=user_memory_repository)
     context = context_builder.build(platform=platform, external_user_id=external_user_id, message=ChatMessage(role="user", content=message), recent_history=recent_history)
 
-    provider = LocalLLMGenerationProvider(settings)
+    provider = OllamaGenerationProvider(settings)
     messages = provider.build_prompt_messages(context)
 
     return {

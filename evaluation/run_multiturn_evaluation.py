@@ -12,8 +12,8 @@ from app.core.settings import Settings
 from app.engine.response_engine import ResponseEngine
 from app.models.chat import ChatMessage
 from app.providers.fallback_provider import FallbackGenerationProvider
-from app.providers.local_llm_provider import LocalLLMGenerationProvider
 from app.providers.mock_provider import MockGenerationProvider
+from app.providers.ollama_provider import OllamaGenerationProvider
 from app.services.assistant_response_safety_validator import AssistantResponseSafetyValidator
 from app.services.conversation_context_builder import ConversationContextBuilder
 from app.services.conversation_service import ConversationService
@@ -49,7 +49,7 @@ def build_generation_provider(settings: Settings):
     mock_provider = MockGenerationProvider(settings)
 
     if settings.generation_provider == "ollama":
-        ollama_provider = LocalLLMGenerationProvider(settings)
+        ollama_provider = OllamaGenerationProvider(settings)
 
         if settings.enable_provider_fallback:
             return FallbackGenerationProvider(
@@ -314,6 +314,35 @@ def extract_character_summary(results: list[dict]) -> dict:
     }
 
 
+def build_model_provider_metadata(settings: Settings) -> dict:
+    runtime = "mock"
+    model = "mock"
+    runtime_endpoint = None
+    primary_provider_class = "MockGenerationProvider"
+    fallback_provider_class = None
+
+    if settings.generation_provider == "ollama":
+        runtime = "ollama"
+        model = settings.ollama_model
+        runtime_endpoint = settings.ollama_base_url
+        primary_provider_class = "OllamaGenerationProvider"
+
+        if settings.enable_provider_fallback:
+            fallback_provider_class = "MockGenerationProvider"
+
+    return {
+        "generation_provider": settings.generation_provider,
+        "runtime": runtime,
+        "model": model,
+        "runtime_endpoint": runtime_endpoint,
+        "primary_provider_class": primary_provider_class,
+        "fallback_enabled": settings.enable_provider_fallback,
+        "fallback_provider_class": fallback_provider_class,
+        "character_file": settings.character_file,
+        "hardware_target": "local_machine",
+    }
+
+
 def write_json_report(settings: Settings, results: list[dict]) -> Path:
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     report_path = REPORTS_DIR / f"multiturn_report_{timestamp}.json"
@@ -324,6 +353,7 @@ def write_json_report(settings: Settings, results: list[dict]) -> Path:
     report = {
         "generated_at": datetime.now(UTC).isoformat(),
         "generation_provider": settings.generation_provider,
+        "model_provider": build_model_provider_metadata(settings),
         "provider_fallback_enabled": settings.enable_provider_fallback,
         "character": extract_character_summary(results),
         "case_count": len(results),
@@ -345,13 +375,21 @@ def write_markdown_report(json_report_path: Path, settings: Settings, results: l
     passed_cases = sum(1 for result in results if result["passed"])
     failed_cases = len(results) - passed_cases
     character = extract_character_summary(results)
+    model_provider = build_model_provider_metadata(settings)
 
     lines: list[str] = [
         "# Multiturn Evaluation Report",
         "",
         f"- Generated at: {datetime.now(UTC).isoformat()}",
         f"- Provider: `{settings.generation_provider}`",
+        f"- Runtime: `{model_provider['runtime']}`",
+        f"- Model: `{model_provider['model']}`",
+        f"- Runtime endpoint: `{model_provider['runtime_endpoint']}`",
+        f"- Primary provider class: `{model_provider['primary_provider_class']}`",
         f"- Provider fallback enabled: `{settings.enable_provider_fallback}`",
+        f"- Fallback provider class: `{model_provider['fallback_provider_class']}`",
+        f"- Hardware target: `{model_provider['hardware_target']}`",
+        f"- Character file: `{settings.character_file}`",
         f"- Character: `{character.get('character_name')}` (`{character.get('character_id')}`)",
         f"- Total cases: {len(results)}",
         f"- Passed cases: {passed_cases}",

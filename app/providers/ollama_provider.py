@@ -5,7 +5,7 @@ from app.models.chat import ChatMessage, ChatTurn
 from app.providers.exceptions import GenerationProviderError
 from app.models.conversation_context import ConversationContext
 
-class LocalLLMGenerationProvider:
+class OllamaGenerationProvider:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.base_url = settings.ollama_base_url
@@ -29,20 +29,20 @@ class LocalLLMGenerationProvider:
             )
             response.raise_for_status()
         except requests.Timeout as exc:
-            raise GenerationProviderError(f"LLM provider request timed out after {self.timeout_seconds} seconds") from exc
+            raise GenerationProviderError(f"Ollama request timed out after {self.timeout_seconds} seconds") from exc
         except requests.ConnectionError as exc:
-            raise GenerationProviderError("Could not connect to the local LLM provider") from exc
+            raise GenerationProviderError("Could not connect to the local Ollama provider") from exc
         except requests.RequestException as exc:
-            raise GenerationProviderError(f"Local LLM provider request failed: {exc}") from exc
+            raise GenerationProviderError(f"Ollama provider request failed: {exc}") from exc
 
         try:
             data = response.json()
         except ValueError as exc:
-            raise GenerationProviderError("Invalid JSON response from LLM provider") from exc
+            raise GenerationProviderError("Invalid JSON response from Ollama provider") from exc
         
         reply_text = self._extract_reply_text(data)
         if not reply_text:
-            raise GenerationProviderError("LLM provider returned an empty reply")
+            raise GenerationProviderError("Ollama provider returned an empty reply")
         
         return reply_text
     
