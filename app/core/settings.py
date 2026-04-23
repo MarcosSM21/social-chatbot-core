@@ -23,6 +23,10 @@ class Settings:
     ollama_model: str
     max_history_turns: int
     ollama_timeout_seconds: int
+    huggingface_model_id: str
+    huggingface_device: str
+    huggingface_max_new_tokens: int
+    huggingface_temperature: float
     enable_provider_fallback : bool
     webhook_verify_token: str
     instagram_api_version: str
@@ -58,6 +62,11 @@ class Settings:
             ollama_model=os.getenv("OLLAMA_MODEL", "gemma3"),
             max_history_turns=int(os.getenv("MAX_HISTORY_TURNS", "3")),
             ollama_timeout_seconds=int(os.getenv("OLLAMA_TIMEOUT_SECONDS", "60")),
+            huggingface_model_id=os.getenv("HUGGINGFACE_MODEL_ID", ""),
+            huggingface_device=os.getenv("HUGGINGFACE_DEVICE", "cpu"),
+            huggingface_max_new_tokens=int(os.getenv("HUGGINGFACE_MAX_NEW_TOKENS", "150")),
+            huggingface_temperature=float(os.getenv("HUGGINGFACE_TEMPERATURE", "0.7")),
+
             enable_provider_fallback=os.getenv("ENABLE_PROVIDER_FALLBACK", "true").lower() == "true",
             webhook_verify_token=os.getenv("WEBHOOK_VERIFY_TOKEN", "dev-verify-token"),
             instagram_api_version=os.getenv("INSTAGRAM_API_VERSION", "v24.0"),

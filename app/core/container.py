@@ -7,8 +7,8 @@ from app.orchestrator.chat_orquestrator import ChatOrchestrator
 from app.services.conversation_service import ConversationService
 from app.storage.local_chat_repository import LocalChatRepository
 from app.providers.mock_provider import MockGenerationProvider
-from app.providers.local_llm_provider import LocalLLMGenerationProvider
 from app.providers.fallback_provider import FallbackGenerationProvider
+from app.providers.ollama_provider import OllamaGenerationProvider
 from app.channels.http_channel_adapter import HttpChannelAdapter
 from app.storage.conversation_mapping_repository import ConversationMappingRepository
 from app.channels.platform_payload_parser import PlatformPayloadParser
@@ -27,7 +27,7 @@ def build_generation_provider(settings: Settings):
     mock_provider = MockGenerationProvider(settings)
     
     if settings.generation_provider == "ollama":
-        ollama_provider = LocalLLMGenerationProvider(settings)
+        ollama_provider = OllamaGenerationProvider(settings)
         if settings.enable_provider_fallback:
             return FallbackGenerationProvider(
                 primary_provider=ollama_provider,
