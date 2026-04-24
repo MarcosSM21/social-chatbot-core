@@ -62,6 +62,16 @@ class OllamaGenerationProvider:
         if context.user_profile:
             messages.append({"role": "system", "content": f"User profile: {context.user_profile}"})
 
+        if context.retrieved_memory:
+            retrieved_memory = "\n".join(f"- {item}" for item in context.retrieved_memory)
+            messages.append(
+                {
+                    "role": "system",
+                    "content": f"Relevant memory for this turn:\n{retrieved_memory}",
+                }
+            )
+
+
         if context.stable_facts:
             stable_facts = "\n".join(f"- {fact}" for fact in context.stable_facts)
             messages.append(

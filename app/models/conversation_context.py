@@ -20,6 +20,9 @@ class ConversationContext:
     stable_facts: list[str] | None = None
     preferences: list[str] | None = None
     relationship_notes: list[str] | None = None
+    retrieved_memory: list[str] | None = None
+    retrieval_strategy: str | None = None
+
 
 
     def to_dict(self) -> dict[str, Any]:
@@ -36,4 +39,7 @@ class ConversationContext:
             "stable_facts": self.stable_facts,
             "preferences": self.preferences,
             "relationship_notes": self.relationship_notes,
+            "retrieved_memory": self.retrieved_memory,
+            "retrieval_strategy": self.retrieval_strategy,
+
         }

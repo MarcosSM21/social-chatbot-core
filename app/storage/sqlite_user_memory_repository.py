@@ -17,12 +17,14 @@ class SQLiteUserMemoryRepository:
         return UserMemory(
             platform=row["platform"],
             external_user_id=row["external_user_id"],
+            last_known_username=row["last_known_username"],
             user_profile=row["user_profile"],
             conversation_summary=row["conversation_summary"],
             stable_facts=json.loads(row["stable_facts_json"]),
             preferences=json.loads(row["preferences_json"]),
             relationship_notes=json.loads(row["relationship_notes_json"]),
             updated_at=row["updated_at"],
+            last_seen_at=row["last_seen_at"],
         )
     
     def load_memories(self) -> list[UserMemory]:
@@ -31,12 +33,14 @@ class SQLiteUserMemoryRepository:
         SELECT
             platform,
             external_user_id,
+            last_known_username,
             user_profile,
             conversation_summary,
             stable_facts_json,
             preferences_json,
             relationship_notes_json,
-            updated_at
+            updated_at,
+            last_seen_at
         FROM user_memories
         ORDER BY platform, external_user_id
         """
@@ -58,12 +62,14 @@ class SQLiteUserMemoryRepository:
         SELECT
             platform,
             external_user_id,
+            last_known_username,
             user_profile,
             conversation_summary,
             stable_facts_json,
             preferences_json,
             relationship_notes_json,
-            updated_at
+            updated_at,
+            last_seen_at
         FROM user_memories
         WHERE platform = ? AND external_user_id = ? 
         """,
@@ -96,32 +102,38 @@ class SQLiteUserMemoryRepository:
             INSERT INTO user_memories (
                 platform,
                 external_user_id,
+                last_known_username,
                 user_profile,
                 conversation_summary,
                 stable_facts_json,
                 preferences_json,
                 relationship_notes_json,
-                updated_at
+                updated_at,
+                last_seen_at
             )
-            VALUES (?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(platform, external_user_id)
             DO UPDATE SET
+                last_known_username = excluded.last_known_username,
                 user_profile = excluded.user_profile,
                 conversation_summary = excluded.conversation_summary,
                 stable_facts_json = excluded.stable_facts_json,
                 preferences_json = excluded.preferences_json,
                 relationship_notes_json = excluded.relationship_notes_json,
-                updated_at = excluded.updated_at
+                updated_at = excluded.updated_at,
+                last_seen_at = excluded.last_seen_at
             """,
             (
                 memory.platform,
                 memory.external_user_id,
+                memory.last_known_username,
                 memory.user_profile,
                 memory.conversation_summary,
                 json.dumps(memory.stable_facts, ensure_ascii=False),
                 json.dumps(memory.preferences, ensure_ascii=False),
                 json.dumps(memory.relationship_notes, ensure_ascii=False),
                 memory.updated_at,
+                memory.last_seen_at,
             ),
         )
         self.connection.commit()
@@ -133,12 +145,14 @@ class SQLiteUserMemoryRepository:
             SELECT
                 platform,
                 external_user_id,
+                last_known_username,
                 user_profile,
                 conversation_summary,
                 stable_facts_json,
                 preferences_json,
                 relationship_notes_json,
-                updated_at
+                updated_at,
+                last_seen_at
             FROM user_memories
             WHERE platform = ?
             ORDER BY external_user_id

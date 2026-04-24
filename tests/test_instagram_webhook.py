@@ -17,11 +17,15 @@ class FakeTraceRepository:
     duplicate = False
     records = []
 
+    def __init__(self, *_args, **_kwargs) -> None:
+        pass
+
     def has_processed_provider_message(self, provider_message_id):
         return self.duplicate
 
     def save_records(self, record):
         self.records.append(record)
+
 
 
 class FakeRequest:
@@ -175,7 +179,14 @@ async def test_instagram_webhook_ignores_non_text_payload(monkeypatch) -> None:
 
     assert response.status == "ignored"
     assert "No supported text-based DM events found" in response.detail
-    assert FakeTraceRepository.records == []
+    assert len(FakeTraceRepository.records) == 1
+
+    record = FakeTraceRepository.records[0]
+    assert record.inbound_status == "ignored"
+    assert record.outbound_status is None
+    assert record.operational_status == "unsupported_input"
+    assert "usable text message" in record.operational_detail
+
 
 
 @pytest.mark.anyio

@@ -46,6 +46,25 @@ def test_sqlite_save_updates_existing_memory(tmp_path) -> None:
     assert memory.relationship_notes == ["no le gusta que le sobreexpliquen"]
 
 
+def test_sqlite_save_round_trips_memory_identity_fields(tmp_path) -> None:
+    repository = build_repository(tmp_path)
+
+    repository.save(
+        UserMemory(
+            platform="instagram",
+            external_user_id="user-1",
+            last_known_username="marcos_ig",
+            last_seen_at="2026-04-24T10:00:00+00:00",
+        )
+    )
+
+    memory = repository.get_by_user("instagram", "user-1")
+
+    assert memory is not None
+    assert memory.last_known_username == "marcos_ig"
+    assert memory.last_seen_at == "2026-04-24T10:00:00+00:00"
+
+
 def test_sqlite_list_by_platform_returns_only_platform_memories(tmp_path) -> None:
     repository = build_repository(tmp_path)
 

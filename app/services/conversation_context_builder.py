@@ -26,6 +26,11 @@ class ConversationContextBuilder:
             external_user_id=external_user_id,
         )
 
+        retrieved_memory = self._select_relevant_memory(
+            user_memory=user_memory,
+            current_message=message.content,
+        )
+
         safety_policy = self._build_safety_policy()
         character = self._build_character()
 
@@ -42,7 +47,8 @@ class ConversationContextBuilder:
             stable_facts=user_memory.stable_facts,
             preferences=user_memory.preferences,
             relationship_notes=user_memory.relationship_notes,
-
+            retrieved_memory=retrieved_memory,
+            retrieval_strategy="rule_based_memory_selector_v1"
         )
 
     def _build_system_instructions(self) -> str:
@@ -140,5 +146,67 @@ class ConversationContextBuilder:
         return "\n".join(f"- {item}" for item in selected_items)
 
 
+    def _select_relevant_memory(
+        self,
+        user_memory: UserMemory,
+        current_message: str,
+    ) -> list[str]:
+        message_lower = current_message.strip().lower()
+        selected: list[str] = []
+
+        identity_cues = ("nombre", "llamo", "name", "remember", "recuerd")
+        preference_cues = ("prefiero", "prefer", "gusta", "like", "respuesta", "respond", "tono")
+        relationship_cues = ("trato", "hablas", "tono", "broma", "vacil", "sobreexpl")
+
+        if user_memory.user_profile and (
+            self._contains_any(message_lower, identity_cues)
+            or self._has_keyword_overlap(message_lower, user_memory.user_profile)
+        ):
+            selected.append(f"Profile: {user_memory.user_profile}")
+
+        for fact in user_memory.stable_facts:
+            if self._contains_any(message_lower, identity_cues) or self._has_keyword_overlap(message_lower, fact):
+                selected.append(f"Stable fact: {fact}")
+
+        for preference in user_memory.preferences:
+            if self._contains_any(message_lower, preference_cues) or self._has_keyword_overlap(message_lower, preference):
+                selected.append(f"Preference: {preference}")
+
+        for note in user_memory.relationship_notes:
+            if self._contains_any(message_lower, relationship_cues) or self._has_keyword_overlap(message_lower, note):
+                selected.append(f"Relationship note: {note}")
+
+        if user_memory.conversation_summary and not selected:
+            selected.append(f"Summary: {user_memory.conversation_summary}")
+
+        return self._deduplicate_memory_items(selected, limit=5)
+    
+
+    def _contains_any(self, text: str, fragments: tuple[str, ...]) -> bool:
+        return any(fragment in text for fragment in fragments)
+    
+
+    def _has_keyword_overlap(self, message_text: str, memory_text: str) -> bool:
+        message_tokens = self._tokenize_for_memory_match(message_text)
+        memory_tokens = self._tokenize_for_memory_match(memory_text)
+        return bool(message_tokens & memory_tokens)
+    
+
+    def _tokenize_for_memory_match(self, text: str) -> set[str]:
+        return {
+            token
+            for token in text.lower().replace(",", " ").replace(".", " ").replace("?", " ").replace("!", " ").split()
+            if len(token) >= 4
+        }
+    
+
+    def _deduplicate_memory_items(self, items: list[str], limit: int) -> list[str]:
+        unique_items: list[str] = []
+
+        for item in items:
+            if item not in unique_items:
+                unique_items.append(item)
+
+        return unique_items[:limit]
 
         

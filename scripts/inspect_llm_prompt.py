@@ -40,7 +40,10 @@ def build_prompt_preview(message: str, platform: str, external_user_id: str, ses
             "conversation_summary": context.conversation_summary,
             "stable_facts": context.stable_facts,
             "preferences": context.preferences,
-            "relationship_notes": context.relationship_notes
+            "relationship_notes": context.relationship_notes,
+            "retrieved_memory": context.retrieved_memory,
+            "retrieval_strategy": context.retrieval_strategy,
+
         },
         "message_count": len(messages),
         "messages": messages,
@@ -65,6 +68,9 @@ def format_markdown(preview: dict) -> str:
         f"- Stable facts: `{preview['memory']['stable_facts']}`",
         f"- Preferences: `{preview['memory']['preferences']}`",
         f"- Relationship notes: `{preview['memory']['relationship_notes']}`",
+        f"- Retrieved memory: `{preview['memory']['retrieved_memory']}`",
+        f"- Retrieval strategy: `{preview['memory']['retrieval_strategy']}`",
+
         "",
         "## Messages",
         "",

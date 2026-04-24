@@ -47,17 +47,25 @@ def test_internal_memory_detail_uses_sqlite_backend(monkeypatch, tmp_path) -> No
         UserMemory(
             platform="instagram",
             external_user_id="user-1",
+            last_known_username="marcos_ig",
+            last_seen_at="2026-04-24T10:00:00+00:00",
             user_profile="Marcos",
             relationship_notes=["le gusta un tono natural"],
         )
     )
 
+
     response = api_main.get_internal_memory_by_user("instagram", "user-1", _=None)
 
     assert response.platform == "instagram"
     assert response.external_user_id == "user-1"
+    assert response.last_known_username == "marcos_ig"
+    assert response.last_seen_at == "2026-04-24T10:00:00+00:00"
     assert response.user_profile == "Marcos"
     assert response.relationship_notes == ["le gusta un tono natural"]
+    
+    
+
 
 
 def test_internal_memory_delete_uses_sqlite_backend(monkeypatch, tmp_path) -> None:
@@ -85,14 +93,23 @@ def test_internal_memory_delete_empty_uses_sqlite_backend(monkeypatch, tmp_path)
     repository.save(
         UserMemory(
             platform="instagram",
-            external_user_id="memory-user",
+            external_user_id="user-1",
+            last_known_username="marcos_ig",
+            last_seen_at="2026-04-24T10:00:00+00:00",
             stable_facts=["se llama Marcos"],
+            preferences=["prefiere respuestas cortas"],
         )
     )
 
     response = api_main.delete_empty_internal_memories(_=None)
 
     assert response.deleted_count == 1
-
     assert repository.get_by_user("instagram", "empty-user") is None
-    assert repository.get_by_user("instagram", "memory-user") is not None
+
+    remaining_memory = repository.get_by_user("instagram", "user-1")
+    assert remaining_memory is not None
+    assert remaining_memory.last_known_username == "marcos_ig"
+    assert remaining_memory.last_seen_at == "2026-04-24T10:00:00+00:00"
+
+    
+
