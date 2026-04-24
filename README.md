@@ -1723,3 +1723,79 @@ It should not be used for real Instagram replies unless it goes through a separa
 ```
 
 The main gain of this phase is model-provider literacy. The project can now use a model downloaded from Hugging Face without requiring a direct Hugging Face Python runtime: the model file is imported into Ollama, and the existing Ollama provider keeps the application architecture stable.
+
+
+## Status (XXVI)
+
+Phase 21 completed: memory architecture and retrieval foundations.
+
+This phase turns memory into a more serious subsystem. The goal was not to make memory maximally smart yet, but to make it explicit, inspectable, safer to evolve, and ready for future retrieval intelligence.
+
+The project now provides:
+
+- memory architecture documentation:
+  - `docs/memory_architecture.md`
+- clearer user identity in memory:
+  - canonical identity remains `platform + external_user_id`
+  - auxiliary fields now include:
+    - `last_known_username`
+    - `last_seen_at`
+- SQLite as the serious default backend for user memory
+- explicit storage-path configuration for:
+  - JSON memory
+  - chat history
+  - external traces
+  - provider raw payloads
+- internal memory API responses that expose the new memory identity fields
+- a clearer non-text input policy:
+  - unsupported inputs are traced as ignored
+  - they do not create conversational memory
+  - they do not enter the conversational pipeline
+- a first retrieval-oriented memory layer in conversation context:
+  - `retrieved_memory`
+  - `retrieval_strategy`
+- a rule-based selector that prepares the codebase for future:
+  - memory retrieval
+  - memory ranking
+  - RAG over memory
+  - LLM-assisted memory selection
+
+## Implemented architecture
+
+User identity and memory persistence
+   -> memory key remains `platform + external_user_id`
+   -> `UserMemory`
+      -> `last_known_username`
+      -> `last_seen_at`
+   -> `SQLiteUserMemoryRepository`
+   -> internal memory inspection API
+
+Operational storage separation
+   -> user memory
+   -> chat history
+   -> external traces
+   -> raw provider payloads
+   -> explicit paths through `Settings`
+
+Turn-level memory retrieval preparation
+   -> full persisted memory
+   -> `ConversationContextBuilder`
+   -> rule-based relevant-memory selection
+   -> `retrieved_memory`
+   -> `retrieval_strategy`
+   -> `OllamaGenerationProvider`
+
+Current boundary:
+
+```text
+This phase does not implement vector search, embeddings, or LLM-assisted memory orchestration yet.
+It prepares the structures that later phases can build on.
+```
+
+The latest full test suite also passes:
+
+```text
+134 passed
+```
+
+The main gain of this phase is architectural clarity. Memory is no longer treated as just a convenient JSON-backed feature; it is now a first-class subsystem with stable identity, explicit storage boundaries, inspectable state, and a clean entry point for future retrieval intelligence.

@@ -3,6 +3,11 @@ from app.models.external_trace import ExternalTraceRecord
 
 
 class FakeExternalTraceRepository:
+    
+    def __init__(self, *_args, **_kwargs) -> None:
+        pass
+
+
     def list_recent_records(self, limit: int = 20, platform: str | None = None):
         records = [
             ExternalTraceRecord(

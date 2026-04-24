@@ -40,7 +40,7 @@ def build_generation_provider(settings: Settings):
 def build_chat_orchestrator(settings: Settings) -> ChatOrchestrator:
     generation_provider = build_generation_provider(settings)
     response_engine = ResponseEngine(generation_provider)
-    chat_repository = LocalChatRepository()
+    chat_repository = LocalChatRepository(settings.chat_history_path)
     user_memory_repository = build_user_memory_repository(settings)
     context_builder = ConversationContextBuilder(settings, user_memory_repository=user_memory_repository)
     response_safety_validator = AssistantResponseSafetyValidator()
@@ -74,7 +74,7 @@ def build_platform_inbound_service(settings: Settings) -> PlatformInboundService
     http_channel_adapter = build_http_channel_adapter(settings)
     payload_parser = PlatformPayloadParser()
     outbound_sender = MockOutboundSender()
-    trace_repository = ExternalTraceRepository()
+    trace_repository = ExternalTraceRepository(settings.external_traces_path)
     return PlatformInboundService(
         payload_parser = payload_parser,
         http_channel_adapter= http_channel_adapter,
@@ -89,7 +89,7 @@ def build_user_memory_repository(settings: Settings):
         return SQLiteUserMemoryRepository(settings.sqlite_database_path)
     
     if backend == "json":
-        return UserMemoryRepository()
+        return UserMemoryRepository(settings.json_user_memory_path)
     
     raise ValueError(f"Unsupported memory storage backend: {settings.memory_storage_backend}")
 

@@ -325,7 +325,7 @@ def list_recent_operational_events(
     _: None = Depends(require_internal_api_key),
 ) -> OperationalEventListResponse:
     
-    trace_repository = ExternalTraceRepository()
+    trace_repository = ExternalTraceRepository(settings.external_traces_path)
     records = trace_repository.list_recent_records(
         limit=limit,
         platform=platform,
@@ -341,7 +341,7 @@ def list_recent_operational_events(
 
 @app.get("/internal/operations/summary", response_model=OperationalSummaryResponse)
 def get_operational_summary(platform: str | None = None, _: None = Depends(require_internal_api_key)) -> OperationalSummaryResponse:
-    trace_repository = ExternalTraceRepository()
+    trace_repository = ExternalTraceRepository(settings.external_traces_path)
     summary = trace_repository.summarize_records(platform=platform)
 
     return OperationalSummaryResponse(
@@ -422,7 +422,18 @@ async def receive_instagram_webhook_message(request: Request) -> WebhookEventRes
 
     _store_instagram_raw_payload(raw_payload)
     provider_parser_result, external_events = _build_external_events(provider_payload)
-    trace_repository = ExternalTraceRepository()
+    trace_repository = ExternalTraceRepository(settings.external_traces_path)
+
+
+    if not external_events:
+        _save_ignored_instagram_provider_event_trace(
+            trace_repository=trace_repository,
+            provider_parser_result=provider_parser_result,
+        )
+        return WebhookEventResponse(
+            status="ignored",
+            detail=provider_parser_result.detail,
+        )
 
     if external_events:
         external_event = external_events[0]
@@ -541,7 +552,7 @@ def _decode_instagram_webhook_payload(raw_body: bytes) -> dict:
 
 
 def _store_instagram_raw_payload(raw_payload: dict) -> None:
-    raw_payload_repository = ProviderRawPayloadRepository()
+    raw_payload_repository = ProviderRawPayloadRepository(settings.provider_raw_payloads_path)
     raw_payload_repository.save_record(
         ProviderRawPayloadRecord(
             provider="instagram",
@@ -728,6 +739,42 @@ def _save_rate_limited_trace(
     )
 
 
+def _save_ignored_instagram_provider_event_trace(
+        trace_repository: ExternalTraceRepository,
+        provider_parser_result: ProviderPayloadParseResult,
+) -> None:
+    first_event = provider_parser_result.events[0] if provider_parser_result.events else None
+
+    trace_repository.save_records(
+        ExternalTraceRecord(
+            platform="instagram",
+            external_conversation_id=(
+                first_event.external_conversation_id if first_event else "unknown"
+            ),
+            external_user_id=(
+                first_event.external_user_id if first_event else "unknown"
+            ),
+            internal_session_id=None,
+            incoming_message_text=(
+                first_event.incoming_message_text if first_event else None
+            ),
+            outgoing_message_text=None,
+            inbound_status="ignored",
+            outbound_status=None,
+            detail=provider_parser_result.detail,
+            provider_message_id=(
+                first_event.provider_message_id if first_event else None
+            ),
+            outbound_message_id=None,
+            operational_status="unsupported_input",
+            operational_error_type=None,
+            operational_detail=(
+                first_event.detail if first_event else provider_parser_result.detail
+            ),
+            memory_loaded=None,
+            memory_updated=None,
+        )
+    )
 
 
 
@@ -757,12 +804,14 @@ def _to_user_memory_response(memory) -> UserMemoryResponse:
     return UserMemoryResponse(
         platform=memory.platform,
         external_user_id=memory.external_user_id,
+        last_known_username=memory.last_known_username,
         user_profile=memory.user_profile,
         conversation_summary=memory.conversation_summary,
         stable_facts=memory.stable_facts,
         preferences=memory.preferences,
         relationship_notes=memory.relationship_notes,
         updated_at=memory.updated_at,
+        last_seen_at=memory.last_seen_at,
     )
 
 

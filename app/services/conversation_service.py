@@ -134,13 +134,12 @@ class ConversationService:
             external_user_id=external_user_id,
         )
 
+        original_last_known_username = memory.last_known_username
         original_profile = memory.user_profile
         original_summary = memory.conversation_summary
         original_stable_facts = list(memory.stable_facts)
         original_preferences = list(memory.preferences)
         original_relationship_notes = list(memory.relationship_notes)
-
-
         candidate_profile_fact = self._extract_user_profile_candidate(
             user_message=user_message.content,
         )
@@ -182,11 +181,18 @@ class ConversationService:
             or memory.stable_facts != original_stable_facts
             or memory.preferences != original_preferences
             or memory.relationship_notes != original_relationship_notes
+            or memory.last_known_username != original_last_known_username
         )
 
+        has_persistable_memory = bool(
+            memory.last_known_username
+            or self._has_meaningful_memory(memory)
+        )
 
-        if memory_updated:
-            memory.updated_at = datetime.now(UTC).isoformat()
+        if has_persistable_memory:
+            now_iso = datetime.now(UTC).isoformat()
+            memory.last_seen_at = now_iso
+            memory.updated_at = now_iso
             self.user_memory_repository.save(memory)
 
         return {

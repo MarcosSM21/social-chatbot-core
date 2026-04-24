@@ -10,6 +10,11 @@ class Settings:
     app_env:str
     sqlite_database_path: str
     memory_storage_backend: str
+    json_user_memory_path: str
+    chat_history_path: str
+    external_traces_path: str
+    provider_raw_payloads_path: str
+
     log_level:str
     llm_provider:str
     internal_api_key: str
@@ -47,7 +52,14 @@ class Settings:
         return cls(
             app_env=os.getenv("APP_ENV", "development"),
             sqlite_database_path = os.getenv("SQLITE_DATABASE_PATH", "data/social_chatbot.sqlite3"),
-            memory_storage_backend = os.getenv("MEMORY_STORAGE_BACKEND", "json"),
+            memory_storage_backend = os.getenv("MEMORY_STORAGE_BACKEND", "sqlite"),
+            json_user_memory_path=os.getenv("JSON_USER_MEMORY_PATH", "data/user_memories.json"),
+            chat_history_path=os.getenv("CHAT_HISTORY_PATH", "data/chat_history.json"),
+            external_traces_path=os.getenv("EXTERNAL_TRACES_PATH", "data/external_traces.json"),
+            provider_raw_payloads_path=os.getenv(
+                "PROVIDER_RAW_PAYLOADS_PATH",
+                "data/provider_raw_payloads.json",
+            ),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             llm_provider=os.getenv("LLM_PROVIDER", "mock"),
             internal_api_key=os.getenv("INTERNAL_API_KEY", "dev-internal-api-key"),
