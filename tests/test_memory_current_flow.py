@@ -251,3 +251,26 @@ def test_building_context_does_not_create_empty_memory(tmp_path) -> None:
     assert memory_repository.get_by_user("instagram", "user-1") is None
 
 
+
+def test_normal_message_adds_summary_to_working_memory_buffer(tmp_path) -> None:
+    service, memory_repository = build_test_service(tmp_path)
+
+    service.process_message(
+        message=ChatMessage(
+            role="user",
+            content="hoy estoy algo cansado, pero quiero seguir avanzando con el proyecto",
+        ),
+        session_id="session-1",
+        platform="instagram",
+        external_user_id="user-1",
+    )
+
+    memory = memory_repository.get_by_user("instagram", "user-1")
+
+    assert memory is not None
+    assert memory.working_memory_buffer == [
+        "The user is tired but still wants to keep making progress with the project."
+    ]
+
+
+

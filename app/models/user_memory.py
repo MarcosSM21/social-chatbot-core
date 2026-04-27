@@ -11,8 +11,10 @@ class UserMemory:
     stable_facts: list[str] = field(default_factory=list)
     preferences: list[str] = field(default_factory=list)
     relationship_notes: list[str] = field(default_factory=list)
+    working_memory_buffer: list[str] = field(default_factory=list)
     updated_at: str | None = None
     last_seen_at: str | None = None
+
 
     def to_dict(self):
         return asdict(self)
@@ -28,6 +30,7 @@ class UserMemory:
             stable_facts=data.get("stable_facts", []),
             preferences=data.get("preferences", []),
             relationship_notes=data.get("relationship_notes", []),
+            working_memory_buffer=data.get("working_memory_buffer", []),
             updated_at=data.get("updated_at"),
             last_seen_at=data.get("last_seen_at"),
         )

@@ -21,7 +21,10 @@ class ConversationContext:
     preferences: list[str] | None = None
     relationship_notes: list[str] | None = None
     retrieved_memory: list[str] | None = None
+    retrieved_memory_reasons: list[str] | None = None
     retrieval_strategy: str | None = None
+    working_memory_buffer: list[str] | None = None
+
 
 
 
@@ -40,6 +43,7 @@ class ConversationContext:
             "preferences": self.preferences,
             "relationship_notes": self.relationship_notes,
             "retrieved_memory": self.retrieved_memory,
+            "retrieved_memory_reasons": self.retrieved_memory_reasons,
             "retrieval_strategy": self.retrieval_strategy,
-
+            "working_memory_buffer": self.working_memory_buffer,
         }

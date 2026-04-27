@@ -117,6 +117,7 @@ class ConversationService:
             or memory.stable_facts
             or memory.preferences
             or memory.relationship_notes
+            or memory.working_memory_buffer
         )
     
     def _update_user_memory(
@@ -140,6 +141,8 @@ class ConversationService:
         original_stable_facts = list(memory.stable_facts)
         original_preferences = list(memory.preferences)
         original_relationship_notes = list(memory.relationship_notes)
+        original_working_memory_buffer = list(memory.working_memory_buffer)
+
         candidate_profile_fact = self._extract_user_profile_candidate(
             user_message=user_message.content,
         )
@@ -175,6 +178,12 @@ class ConversationService:
         if summary_safety.status == "passed":
             memory.conversation_summary = candidate_summary
 
+            memory.working_memory_buffer = self._append_unique_memory_item(
+                items=memory.working_memory_buffer,
+                candidate=candidate_summary,
+            )[-5:]
+
+
         memory_updated = (
             memory.user_profile != original_profile
             or memory.conversation_summary != original_summary
@@ -182,6 +191,7 @@ class ConversationService:
             or memory.preferences != original_preferences
             or memory.relationship_notes != original_relationship_notes
             or memory.last_known_username != original_last_known_username
+            or memory.working_memory_buffer != original_working_memory_buffer
         )
 
         has_persistable_memory = bool(

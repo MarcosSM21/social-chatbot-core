@@ -1799,3 +1799,68 @@ The latest full test suite also passes:
 ```
 
 The main gain of this phase is architectural clarity. Memory is no longer treated as just a convenient JSON-backed feature; it is now a first-class subsystem with stable identity, explicit storage boundaries, inspectable state, and a clean entry point for future retrieval intelligence.
+
+
+## Status (XXVII)
+
+Phase 22 completed: memory intelligence and context compaction foundations.
+
+This phase moves the project beyond memory architecture and into early memory intelligence. The goal was not to build the final `LLMMemoryOrchestrator` yet, but to create the conceptual and practical bridge between stored memory and prompt-ready compact context.
+
+The project now provides:
+
+- compact memory design documents:
+  - `docs/memory_compaction_map.md`
+  - `docs/memory_compaction_contract.md`
+  - `docs/working_memory_buffer.md`
+  - `docs/memory_intelligence_overview.md`
+- a first lightweight `working_memory_buffer` persisted inside `UserMemory`
+- turn-level memory retrieval that can now:
+  - use structured memory when relevant
+  - use `working_memory_buffer` before falling back to `conversation_summary`
+- explicit retrieval tracing through:
+  - `retrieved_memory`
+  - `retrieved_memory_reasons`
+  - `retrieval_strategy`
+- prompt inspection that now shows:
+  - retrieved memory
+  - retrieval reasons
+  - working memory state
+
+## Implemented architecture
+
+Memory intelligence flow
+   -> persistent memory
+      -> `stable_facts`
+      -> `preferences`
+      -> `relationship_notes`
+      -> `conversation_summary`
+      -> `working_memory_buffer`
+   -> `ConversationContextBuilder`
+      -> rule-based selection
+      -> `retrieved_memory`
+      -> `retrieved_memory_reasons`
+      -> `retrieval_strategy`
+   -> `OllamaGenerationProvider`
+      -> compact turn-level memory block in the prompt
+
+Working memory direction
+   -> recent history remains short-term continuity
+   -> persistent memory remains long-term structured memory
+   -> `working_memory_buffer` becomes the first medium-term staging layer
+   -> future `LLMMemoryOrchestrator` can later compact and promote memory without forcing huge summaries into the prompt
+
+Current boundary:
+
+```text
+This phase does not implement embeddings, vector retrieval, or LLM-based orchestration yet.
+It establishes the first real memory-intelligence loop using lightweight rule-based selection and a medium-term working-memory layer.
+```
+
+The latest full test suite also passes:
+
+```text
+140 passed
+```
+
+The main gain of this phase is directional intelligence. The system no longer only stores memory; it now begins to decide which memory matters for a turn, why it matters, and how broader medium-term context can be prepared for future orchestration without paying the latency cost of a second LLM on every response.

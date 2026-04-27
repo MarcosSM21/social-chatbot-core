@@ -119,3 +119,25 @@ def test_sqlite_delete_empty_memories_removes_only_empty_records(tmp_path) -> No
     assert deleted_count == 1
     assert len(remaining_memories) == 1
     assert remaining_memories[0].external_user_id == "memory-user"
+
+
+def test_sqlite_save_round_trips_working_memory_buffer(tmp_path) -> None:
+    repository = build_repository(tmp_path)
+
+    repository.save(
+        UserMemory(
+            platform="instagram",
+            external_user_id="user-1",
+            working_memory_buffer=[
+                "The user is tired but wants to keep making progress with the project."
+            ],
+        )
+    )
+
+    memory = repository.get_by_user("instagram", "user-1")
+
+    assert memory is not None
+    assert memory.working_memory_buffer == [
+        "The user is tired but wants to keep making progress with the project."
+    ]
+

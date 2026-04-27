@@ -13,6 +13,7 @@ def initialize_sqlite_schema(connection: sqlite3.Connection) -> None:
             stable_facts_json TEXT NOT NULL DEFAULT '[]',
             preferences_json TEXT NOT NULL DEFAULT '[]',
             relationship_notes_json TEXT NOT NULL DEFAULT '[]',
+            working_memory_buffer_json TEXT NOT NULL DEFAULT '[]',
             updated_at TEXT,
             last_seen_at TEXT,
             PRIMARY KEY (platform, external_user_id)
@@ -22,6 +23,13 @@ def initialize_sqlite_schema(connection: sqlite3.Connection) -> None:
 
     _ensure_column_exists(connection, "user_memories", "last_known_username", "TEXT")
     _ensure_column_exists(connection, "user_memories", "last_seen_at", "TEXT")
+    _ensure_column_exists(
+        connection,
+        "user_memories",
+        "working_memory_buffer_json",
+        "TEXT NOT NULL DEFAULT '[]'",
+    )
+
 
     connection.execute(
         """

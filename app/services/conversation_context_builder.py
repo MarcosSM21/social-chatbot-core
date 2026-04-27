@@ -26,7 +26,7 @@ class ConversationContextBuilder:
             external_user_id=external_user_id,
         )
 
-        retrieved_memory = self._select_relevant_memory(
+        retrieved_memory, retrieved_memory_reasons = self._select_relevant_memory(
             user_memory=user_memory,
             current_message=message.content,
         )
@@ -48,7 +48,9 @@ class ConversationContextBuilder:
             preferences=user_memory.preferences,
             relationship_notes=user_memory.relationship_notes,
             retrieved_memory=retrieved_memory,
-            retrieval_strategy="rule_based_memory_selector_v1"
+            retrieved_memory_reasons=retrieved_memory_reasons,
+            retrieval_strategy="rule_based_memory_selector_v1",
+            working_memory_buffer=user_memory.working_memory_buffer,
         )
 
     def _build_system_instructions(self) -> str:
@@ -150,9 +152,11 @@ class ConversationContextBuilder:
         self,
         user_memory: UserMemory,
         current_message: str,
-    ) -> list[str]:
+    ) -> tuple[list[str], list[str]]:
+        
         message_lower = current_message.strip().lower()
         selected: list[str] = []
+        reasons: list[str] = []
 
         identity_cues = ("nombre", "llamo", "name", "remember", "recuerd")
         preference_cues = ("prefiero", "prefer", "gusta", "like", "respuesta", "respond", "tono")
@@ -163,23 +167,41 @@ class ConversationContextBuilder:
             or self._has_keyword_overlap(message_lower, user_memory.user_profile)
         ):
             selected.append(f"Profile: {user_memory.user_profile}")
+            reasons.append("selected user_profile because the message matched identity/profile cues")
 
         for fact in user_memory.stable_facts:
             if self._contains_any(message_lower, identity_cues) or self._has_keyword_overlap(message_lower, fact):
                 selected.append(f"Stable fact: {fact}")
+                reasons.append(f"selected stable_fact because it matched the current message: {fact}")
 
         for preference in user_memory.preferences:
             if self._contains_any(message_lower, preference_cues) or self._has_keyword_overlap(message_lower, preference):
                 selected.append(f"Preference: {preference}")
+                reasons.append(f"selected preference because it matched response-style cues: {preference}")
 
         for note in user_memory.relationship_notes:
             if self._contains_any(message_lower, relationship_cues) or self._has_keyword_overlap(message_lower, note):
                 selected.append(f"Relationship note: {note}")
+                reasons.append(f"selected relationship_note because it matched relational cues: {note}")
+
+        if not selected:
+            working_memory_matches = self._select_working_memory_matches(
+                working_memory_buffer=user_memory.working_memory_buffer,
+                current_message=current_message,
+            )
+            if working_memory_matches:
+                selected.extend(working_memory_matches)
+                reasons.append("selected working_memory_buffer because no structured memory matched more strongly")
 
         if user_memory.conversation_summary and not selected:
             selected.append(f"Summary: {user_memory.conversation_summary}")
+            reasons.append("selected conversation_summary as fallback because no other memory source matched")
 
-        return self._deduplicate_memory_items(selected, limit=5)
+        selected = self._deduplicate_memory_items(selected, limit=5)
+        reasons = self._deduplicate_memory_items(reasons, limit=5)
+
+        return selected, reasons
+
     
 
     def _contains_any(self, text: str, fragments: tuple[str, ...]) -> bool:
@@ -208,5 +230,20 @@ class ConversationContextBuilder:
                 unique_items.append(item)
 
         return unique_items[:limit]
+    
+    def _select_working_memory_matches(self, working_memory_buffer: list[str], current_message: str) -> list[str]:
+        if not working_memory_buffer:
+            return []
+        
+        matching_items =  [
+            item 
+            for item in working_memory_buffer
+            if self._has_keyword_overlap(current_message, item)
+        ]
+
+        if matching_items:
+            return [f"Working memory: {item}" for item in matching_items[-1:]]
+        
+        return [f"Working memory: {working_memory_buffer[-1]}"]
 
         

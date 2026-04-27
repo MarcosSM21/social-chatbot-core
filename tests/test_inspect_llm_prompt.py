@@ -215,3 +215,36 @@ def test_build_prompt_preview_includes_retrieved_memory_block(tmp_path) -> None:
     assert "Relevant memory for this turn" in contents
     assert "Stable fact: me llamo Marcos" in contents
 
+def test_build_prompt_preview_can_use_working_memory_in_retrieved_memory_block(tmp_path) -> None:
+    chat_history_file = tmp_path / "chat_history.json"
+    user_memory_file = tmp_path / "user_memories.json"
+
+    memory_repository = UserMemoryRepository(str(user_memory_file))
+    memory_repository.save(
+        UserMemory(
+            platform="instagram",
+            external_user_id="user-1",
+            working_memory_buffer=[
+                "The user is working on a project and wants the next concrete step."
+            ],
+            conversation_summary="The user wants practical help.",
+        )
+    )
+
+    preview = build_prompt_preview(
+        message="qué harías ahora con el proyecto?",
+        platform="instagram",
+        external_user_id="user-1",
+        session_id="session-1",
+        chat_history_file=str(chat_history_file),
+        user_memory_file=str(user_memory_file),
+    )
+
+    contents = "\n".join(message["content"] for message in preview["messages"])
+
+    assert "Relevant memory for this turn" in contents
+    assert "Working memory: The user is working on a project and wants the next concrete step." in contents
+    assert preview["memory"]["retrieved_memory_reasons"] is not None
+
+
+

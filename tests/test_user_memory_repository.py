@@ -137,3 +137,13 @@ def test_delete_empty_memories_removes_only_empty_records(tmp_path) -> None:
     assert len(remaining_memories) == 1
     assert remaining_memories[0].external_user_id == "memory-user"
 
+def test_user_memory_from_old_shape_keeps_working_buffer_empty() -> None:
+    memory = UserMemory.from_dict(
+        {
+            "platform": "instagram",
+            "external_user_id": "user-1",
+            "user_profile": "me llamo Marcos",
+        }
+    )
+
+    assert memory.working_memory_buffer == []

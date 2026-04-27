@@ -23,6 +23,7 @@ class SQLiteUserMemoryRepository:
             stable_facts=json.loads(row["stable_facts_json"]),
             preferences=json.loads(row["preferences_json"]),
             relationship_notes=json.loads(row["relationship_notes_json"]),
+            working_memory_buffer=json.loads(row["working_memory_buffer_json"]),
             updated_at=row["updated_at"],
             last_seen_at=row["last_seen_at"],
         )
@@ -39,6 +40,7 @@ class SQLiteUserMemoryRepository:
             stable_facts_json,
             preferences_json,
             relationship_notes_json,
+            working_memory_buffer_json,
             updated_at,
             last_seen_at
         FROM user_memories
@@ -68,6 +70,7 @@ class SQLiteUserMemoryRepository:
             stable_facts_json,
             preferences_json,
             relationship_notes_json,
+            working_memory_buffer_json,
             updated_at,
             last_seen_at
         FROM user_memories
@@ -108,10 +111,11 @@ class SQLiteUserMemoryRepository:
                 stable_facts_json,
                 preferences_json,
                 relationship_notes_json,
+                working_memory_buffer_json,
                 updated_at,
                 last_seen_at
             )
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(platform, external_user_id)
             DO UPDATE SET
                 last_known_username = excluded.last_known_username,
@@ -120,6 +124,7 @@ class SQLiteUserMemoryRepository:
                 stable_facts_json = excluded.stable_facts_json,
                 preferences_json = excluded.preferences_json,
                 relationship_notes_json = excluded.relationship_notes_json,
+                working_memory_buffer_json = excluded.working_memory_buffer_json,
                 updated_at = excluded.updated_at,
                 last_seen_at = excluded.last_seen_at
             """,
@@ -132,6 +137,7 @@ class SQLiteUserMemoryRepository:
                 json.dumps(memory.stable_facts, ensure_ascii=False),
                 json.dumps(memory.preferences, ensure_ascii=False),
                 json.dumps(memory.relationship_notes, ensure_ascii=False),
+                json.dumps(memory.working_memory_buffer, ensure_ascii=False),
                 memory.updated_at,
                 memory.last_seen_at,
             ),
@@ -151,6 +157,7 @@ class SQLiteUserMemoryRepository:
                 stable_facts_json,
                 preferences_json,
                 relationship_notes_json,
+                working_memory_buffer_json,
                 updated_at,
                 last_seen_at
             FROM user_memories
@@ -182,6 +189,7 @@ class SQLiteUserMemoryRepository:
             or memory.stable_facts
             or memory.preferences
             or memory.relationship_notes
+            or memory.working_memory_buffer
         )
     
     def delete_empty_memories(self) -> int:
