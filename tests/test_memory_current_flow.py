@@ -361,4 +361,84 @@ def test_working_memory_buffer_keeps_distinct_context_items(tmp_path) -> None:
 
 
 
+def test_working_memory_buffer_keeps_recent_novel_context_when_limit_is_exceeded(tmp_path) -> None:
+    service, memory_repository = build_test_service(tmp_path)
+
+    messages = [
+        "hoy estoy algo cansado, pero quiero seguir avanzando con el proyecto",
+        "también me preocupa bastante cómo organizar la memoria del sistema",
+        "quiero el siguiente paso concreto del proyecto",
+        "estoy pensando mucho en retrieval y compactación",
+        "también me preocupa la latencia si metemos más LLMs",
+        "además quiero una forma sencilla de inspeccionar sqlite",
+    ]
+
+    for message in messages:
+        service.process_message(
+            message=ChatMessage(role="user", content=message),
+            session_id="session-1",
+            platform="instagram",
+            external_user_id="user-1",
+        )
+
+    memory = memory_repository.get_by_user("instagram", "user-1")
+
+    assert memory is not None
+    assert len(memory.working_memory_buffer) == 5
+
+
+def test_working_memory_buffer_keeps_single_fragment_for_same_topic_refinement(tmp_path) -> None:
+    service, memory_repository = build_test_service(tmp_path)
+
+    service.process_message(
+        message=ChatMessage(
+            role="user",
+            content="me preocupa bastante la arquitectura de memoria",
+        ),
+        session_id="session-1",
+        platform="instagram",
+        external_user_id="user-1",
+    )
+
+    service.process_message(
+        message=ChatMessage(
+            role="user",
+            content="también me preocupa la calidad del retrieval dentro de esa arquitectura",
+        ),
+        session_id="session-1",
+        platform="instagram",
+        external_user_id="user-1",
+    )
+
+    memory = memory_repository.get_by_user("instagram", "user-1")
+
+    assert memory is not None
+    assert len(memory.working_memory_buffer) <= 2
+
+def test_working_memory_buffer_does_not_grow_with_repeated_reformulations_of_same_theme(tmp_path) -> None:
+    service, memory_repository = build_test_service(tmp_path)
+
+    messages = [
+        "me preocupa bastante la arquitectura de memoria",
+        "también me preocupa cómo organizar bien el retrieval",
+        "quiero que el sistema de memoria quede claro y ordenado",
+        "sigo dándole vueltas a cómo organizar bien la arquitectura y el retrieval",
+    ]
+
+    for message in messages:
+        service.process_message(
+            message=ChatMessage(role="user", content=message),
+            session_id="session-1",
+            platform="instagram",
+            external_user_id="user-1",
+        )
+
+    memory = memory_repository.get_by_user("instagram", "user-1")
+
+    assert memory is not None
+    assert len(memory.working_memory_buffer) <= 3
+
+
+
+
 

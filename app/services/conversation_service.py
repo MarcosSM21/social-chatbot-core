@@ -303,25 +303,114 @@ class ConversationService:
         normalized_candidate = candidate.strip()
         if not normalized_candidate:
             return items
-        
+
         candidate_lower = normalized_candidate.lower()
 
-        # Exact duplicate: keep current buffer as-is.
         for item in items:
             if item.strip().lower() == candidate_lower:
                 return items
-            
-        # If the new item overlaps strongly with an existing one, keep the more informative version
+
+
         for index, item in enumerate(items):
             if self._memory_items_overlap(item, normalized_candidate):
                 existing = item.strip()
+
+                if self._is_multi_item_reformulation(
+                    items=items,
+                    matched_index=index,
+                    candidate=normalized_candidate,
+                ):
+                    return items
+
+                if self._should_merge_overlapping_memory_items(existing, normalized_candidate):
+                    merged_item = self._merge_overlapping_memory_items(existing, normalized_candidate)
+                    updated_items = list(items)
+                    updated_items[index] = merged_item
+                    return updated_items[-limit:]
+
                 if len(normalized_candidate) > len(existing):
                     updated_items = list(items)
                     updated_items[index] = normalized_candidate
                     return updated_items[-limit:]
+
                 return items
-            
-        return [*items, normalized_candidate][-limit:]
+
+
+        if len(items) < limit:
+            return [*items, normalized_candidate]
+
+        if not self._is_novel_working_memory_candidate(
+            items=items,
+            candidate=normalized_candidate,
+        ):
+            return items
+
+        return [*items[1:], normalized_candidate]
+
+    
+    def _is_novel_working_memory_candidate(self, items: list[str], candidate: str) -> bool:
+        candidate_tokens = self._tokenize_memory_text(candidate)
+        if not candidate_tokens:
+            return False
+        
+        highest_overlap_ratio = 0.0
+
+        for item in items:
+            item_tokens = self._tokenize_memory_text(item)
+            if not item_tokens:
+                continue
+
+            overlap = candidate_tokens & item_tokens
+            overlap_ratio = len(overlap) / min(len(candidate_tokens), len(item_tokens))
+            highest_overlap_ratio = max(highest_overlap_ratio, overlap_ratio)
+
+        return highest_overlap_ratio < 0.6
+    
+    def _is_multi_item_reformulation(
+        self,
+        items: list[str],
+        matched_index: int,
+        candidate: str,
+    ) -> bool:
+        candidate_tokens = self._tokenize_memory_text(candidate)
+        if not candidate_tokens:
+            return False
+
+        overlapping_other_items = 0
+
+        for index, item in enumerate(items):
+            if index == matched_index:
+                continue
+
+            item_tokens = self._tokenize_memory_text(item)
+            if not item_tokens:
+                continue
+
+            overlap = candidate_tokens & item_tokens
+
+            if len(overlap) >= 1:
+                overlapping_other_items += 1
+
+        return overlapping_other_items >= 2
+
+
+    def _should_merge_overlapping_memory_items(self, existing: str, candidate: str) -> bool:
+        existing_tokens = self._tokenize_memory_text(existing)
+        candidate_tokens = self._tokenize_memory_text(candidate)
+
+        if not existing_tokens or not candidate_tokens:
+            return False
+        
+        new_candidate_tokens = candidate_tokens - existing_tokens
+        overlap = existing_tokens & candidate_tokens
+
+        return bool(overlap) and len(new_candidate_tokens) >= 2
+    
+    def _merge_overlapping_memory_items(self, existing:str, candidate: str) -> str:
+        if len(candidate) > len(existing):
+            return candidate
+        
+        return existing
     
 
     def _memory_items_overlap(self, left:str, right: str) -> bool:
@@ -332,9 +421,9 @@ class ConversationService:
             return False
         
         overlap = left_tokens & right_tokens
-        minimum_overlap = min(len(left_tokens), len(right_tokens))
+        overlap_ratio = len(overlap) / min(len(left_tokens), len(right_tokens))
 
-        return len(overlap) >= max(2, minimum_overlap // 2)
+        return overlap_ratio >= 0.75
     
     def _tokenize_memory_text(self, text:str) -> set[str]:
         normalized = (
@@ -347,10 +436,21 @@ class ConversationService:
             .replace(";", " ")
         )
 
+        ignored_tokens = {
+            "user",
+            "wants",
+            "want",
+            "also",
+            "with",
+            "that",
+            "this",
+            "about",
+        }
+
         return {
             token 
             for token in normalized.split()
-            if len(token) >= 4
+            if len(token) >= 4 and token not in ignored_tokens
         }
     
 

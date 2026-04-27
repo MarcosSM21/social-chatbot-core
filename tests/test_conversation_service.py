@@ -126,3 +126,123 @@ def test_conversation_service_loads_structured_memory_on_followup(tmp_path) -> N
 
     assert memory.stable_facts == ["me llamo Marcos"]
     assert turn.session_metadata["memory_loaded"] is True
+
+
+def test_working_memory_buffer_drops_oldest_novel_item_when_full(tmp_path) -> None:
+    service, _ = build_service(tmp_path)
+
+    updated = service._update_working_memory_buffer(
+        items=[
+            "The user is tired and wants to keep making progress.",
+            "The user is worried about the architecture.",
+            "The user wants concrete next steps.",
+            "The user is exploring memory retrieval.",
+            "The user is thinking about latency tradeoffs.",
+        ],
+        candidate="The user also wants an easy way to inspect SQLite memory.",
+        limit=5,
+    )
+
+    assert updated == [
+        "The user is worried about the architecture.",
+        "The user wants concrete next steps.",
+        "The user is exploring memory retrieval.",
+        "The user is thinking about latency tradeoffs.",
+        "The user also wants an easy way to inspect SQLite memory.",
+    ]
+
+
+def test_working_memory_buffer_rejects_low_novelty_candidate_when_full(tmp_path) -> None:
+    service, _ = build_service(tmp_path)
+
+    items = [
+        "The user is tired and wants to keep making progress.",
+        "The user is worried about the architecture.",
+        "The user wants concrete next steps.",
+        "The user is exploring memory retrieval.",
+        "The user is thinking about latency tradeoffs.",
+    ]
+
+    updated = service._update_working_memory_buffer(
+        items=items,
+        candidate="The user wants concrete next steps.",
+        limit=5,
+    )
+
+    assert updated == items
+
+
+def test_working_memory_buffer_consolidates_overlapping_fragment_with_more_context(tmp_path) -> None:
+    service, _ = build_service(tmp_path)
+
+    updated = service._update_working_memory_buffer(
+        items=[
+            "The user is worried about the memory architecture.",
+        ],
+        candidate="The user is worried about the memory architecture and retrieval quality.",
+        limit=5,
+    )
+
+    assert updated == [
+        "The user is worried about the memory architecture and retrieval quality."
+    ]
+
+
+def test_working_memory_buffer_keeps_existing_fragment_when_overlap_adds_no_real_value(tmp_path) -> None:
+    service, _ = build_service(tmp_path)
+
+    items = [
+        "The user is worried about the memory architecture and retrieval quality.",
+    ]
+
+    updated = service._update_working_memory_buffer(
+        items=items,
+        candidate="The user is worried about the memory architecture.",
+        limit=5,
+    )
+
+    assert updated == items
+
+
+def test_working_memory_buffer_rejects_reformulation_of_existing_buffer_theme(tmp_path) -> None:
+    service, _ = build_service(tmp_path)
+
+    items = [
+        "The user is worried about the memory architecture.",
+        "The user is thinking about retrieval quality.",
+        "The user wants to organize the system clearly.",
+    ]
+
+    updated = service._update_working_memory_buffer(
+        items=items,
+        candidate="The user is worried about organizing the memory architecture and retrieval clearly.",
+        limit=5,
+    )
+
+    assert updated == items
+
+
+
+def test_working_memory_buffer_allows_distinct_candidate_when_not_reformulation(tmp_path) -> None:
+    service, _ = build_service(tmp_path)
+
+    items = [
+        "The user is worried about the memory architecture.",
+        "The user is thinking about retrieval quality.",
+        "The user wants to organize the system clearly.",
+    ]
+
+    updated = service._update_working_memory_buffer(
+        items=items,
+        candidate="The user wants an easy visual way to inspect SQLite memory.",
+        limit=5,
+    )
+
+    assert updated == [
+        "The user is worried about the memory architecture.",
+        "The user is thinking about retrieval quality.",
+        "The user wants to organize the system clearly.",
+        "The user wants an easy visual way to inspect SQLite memory.",
+    ]
+
+

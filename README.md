@@ -1930,3 +1930,72 @@ The latest full test suite also passes:
 ```
 
 The main gain of this phase is memory discipline. The system now has a clearer idea of what should become durable memory, what should stay as medium-term working context, and what should not persist at all.
+
+
+## Status (XXIX)
+
+Phase 24 completed: working memory maturation.
+
+This phase turns `working_memory_buffer` into a more deliberate conversational episodic layer. The goal was to stop treating it like a simple append-only list and start governing it with clearer rules around recency, novelty, overlap, and reformulation.
+
+The project now provides:
+
+- working-memory documentation:
+  - `docs/working_memory_buffer_policy.md`
+  - `docs/memory_layers_reference.md`
+- a more mature `working_memory_buffer` policy:
+  - exact duplicates are ignored
+  - weak reformulations are rejected
+  - overlapping fragments can be consolidated
+  - more informative fragments can replace weaker ones
+  - recent genuinely novel fragments can displace the oldest item when the buffer is full
+- better protection against buffer noise:
+  - the buffer does not grow just because wording changes slightly
+  - recombinations of already-covered context can be rejected
+  - the buffer remains short and medium-term oriented
+- explicit working-memory policy tests:
+  - situational context enters the buffer
+  - durable structured facts do not
+  - overlap and refinement are consolidated
+  - low-novelty or reformulated context can be rejected
+  - the buffer stays within its limit in real flow
+
+## Implemented architecture
+
+Working-memory update flow
+   -> turn-level summary fragment
+   -> `ConversationService._update_working_memory_buffer(...)`
+      -> exact duplicate check
+      -> strong overlap check
+      -> multi-item reformulation rejection
+      -> overlap consolidation / replacement
+      -> novelty check when full
+      -> recency-based eviction of the oldest item only for genuinely novel context
+
+Layer role after this phase
+   -> `recent_history`
+      -> short-term raw turns
+   -> `conversation_summary`
+      -> compact continuity fallback
+   -> `working_memory_buffer`
+      -> medium-term episodic fragments
+   -> `retrieved_memory`
+      -> selected memory for the current turn
+
+Current boundary:
+
+```text
+This phase improves the usefulness and cleanliness of working memory,
+but it still does not implement semantic clustering, embeddings, vector retrieval,
+or LLM-based memory orchestration.
+It establishes a more governed episodic memory layer so later compaction and orchestration
+can build on better fragments instead of noisier accumulation.
+```
+
+The latest full test suite also passes:
+
+```text
+166 passed
+```
+
+The main gain of this phase is working-memory quality. The system now keeps a smaller and more coherent set of medium-term conversational fragments, which makes later retrieval and future compaction much easier to reason about.
