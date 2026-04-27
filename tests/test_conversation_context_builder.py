@@ -187,3 +187,65 @@ def test_context_builder_uses_summary_only_when_working_memory_buffer_is_empty(t
     assert context.retrieved_memory == [
         "Summary: The user is tired and wants to keep making progress."
     ]
+
+
+def test_context_builder_prioritizes_structured_memory_over_user_profile(tmp_path) -> None:
+    user_memory_file = tmp_path / "user_memories.json"
+
+    settings = Settings.from_env()
+    user_memory_repository = UserMemoryRepository(str(user_memory_file))
+    user_memory_repository.save(
+        UserMemory(
+            platform="instagram",
+            external_user_id="user-1",
+            user_profile="me llamo Marcos",
+            stable_facts=["me llamo Marcos"],
+        )
+    )
+
+    builder = ConversationContextBuilder(
+        settings=settings,
+        user_memory_repository=user_memory_repository,
+    )
+
+    context = builder.build(
+        platform="instagram",
+        external_user_id="user-1",
+        message=ChatMessage(role="user", content="te acuerdas de mi nombre?"),
+        recent_history=[],
+    )
+
+    assert context.retrieved_memory == ["Stable fact: me llamo Marcos"]
+    assert context.retrieved_memory_reasons is not None
+    assert any("stable_fact" in reason for reason in context.retrieved_memory_reasons)
+    assert not any("user_profile" in reason for reason in context.retrieved_memory_reasons)
+
+def test_context_builder_can_still_use_user_profile_as_fallback(tmp_path) -> None:
+    user_memory_file = tmp_path / "user_memories.json"
+
+    settings = Settings.from_env()
+    user_memory_repository = UserMemoryRepository(str(user_memory_file))
+    user_memory_repository.save(
+        UserMemory(
+            platform="instagram",
+            external_user_id="user-1",
+            user_profile="me llamo Marcos",
+        )
+    )
+
+    builder = ConversationContextBuilder(
+        settings=settings,
+        user_memory_repository=user_memory_repository,
+    )
+
+    context = builder.build(
+        platform="instagram",
+        external_user_id="user-1",
+        message=ChatMessage(role="user", content="te acuerdas de mi nombre?"),
+        recent_history=[],
+    )
+
+    assert context.retrieved_memory == ["Profile: me llamo Marcos"]
+    assert context.retrieved_memory_reasons == [
+        "selected user_profile as fallback because no structured memory matched first"
+    ]

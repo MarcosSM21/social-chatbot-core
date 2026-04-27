@@ -74,6 +74,9 @@ def test_name_message_is_stored_as_stable_fact_and_profile(tmp_path) -> None:
     assert memory.updated_at is not None
     assert turn.session_metadata["memory_updated"] is True
     assert turn.session_metadata["memory_profile_status"] == "passed"
+    assert memory.conversation_summary is None
+    assert memory.working_memory_buffer == []
+
 
 
 def test_preference_message_is_stored_as_preference_and_profile(tmp_path) -> None:
@@ -95,6 +98,9 @@ def test_preference_message_is_stored_as_preference_and_profile(tmp_path) -> Non
     assert memory.updated_at is not None
     assert turn.session_metadata["memory_updated"] is True
     assert turn.session_metadata["memory_profile_status"] == "passed"
+    assert memory.conversation_summary is None
+    assert memory.working_memory_buffer == []
+
 
 
 def test_embedded_preference_message_is_stored_as_clean_preference(tmp_path) -> None:
@@ -117,6 +123,9 @@ def test_embedded_preference_message_is_stored_as_clean_preference(tmp_path) -> 
     assert memory.preferences == ["prefiero respuestas cortas y sin rodeos"]
     assert turn.session_metadata["memory_updated"] is True
     assert turn.session_metadata["memory_profile_status"] == "passed"
+    assert memory.conversation_summary is None
+    assert memory.working_memory_buffer == []
+
 
 
 def test_memory_question_does_not_create_false_preference(tmp_path) -> None:
@@ -271,6 +280,85 @@ def test_normal_message_adds_summary_to_working_memory_buffer(tmp_path) -> None:
     assert memory.working_memory_buffer == [
         "The user is tired but still wants to keep making progress with the project."
     ]
+
+
+def test_structured_memory_message_does_not_enter_working_memory_buffer(tmp_path) -> None:
+    service, memory_repository = build_test_service(tmp_path)
+
+    service.process_message(
+        message=ChatMessage(role="user", content="me llamo Marcos"),
+        session_id="session-1",
+        platform="instagram",
+        external_user_id="user-1",
+    )
+
+    memory = memory_repository.get_by_user("instagram", "user-1")
+
+    assert memory is not None
+    assert memory.stable_facts == ["me llamo Marcos"]
+    assert memory.conversation_summary is None
+    assert memory.working_memory_buffer == []
+
+
+def test_working_memory_buffer_replaces_less_informative_overlapping_summary(tmp_path) -> None:
+    service, memory_repository = build_test_service(tmp_path)
+
+    service.process_message(
+        message=ChatMessage(
+            role="user",
+            content="estoy cansado con el proyecto",
+        ),
+        session_id="session-1",
+        platform="instagram",
+        external_user_id="user-1",
+    )
+
+    service.process_message(
+        message=ChatMessage(
+            role="user",
+            content="hoy estoy algo cansado, pero quiero seguir avanzando con el proyecto",
+        ),
+        session_id="session-1",
+        platform="instagram",
+        external_user_id="user-1",
+    )
+
+    memory = memory_repository.get_by_user("instagram", "user-1")
+
+    assert memory is not None
+    assert len(memory.working_memory_buffer) == 1
+    assert memory.working_memory_buffer == [
+        "The user is tired but still wants to keep making progress with the project."
+    ]
+
+def test_working_memory_buffer_keeps_distinct_context_items(tmp_path) -> None:
+    service, memory_repository = build_test_service(tmp_path)
+
+    service.process_message(
+        message=ChatMessage(
+            role="user",
+            content="hoy estoy algo cansado, pero quiero seguir avanzando con el proyecto",
+        ),
+        session_id="session-1",
+        platform="instagram",
+        external_user_id="user-1",
+    )
+
+    service.process_message(
+        message=ChatMessage(
+            role="user",
+            content="también me preocupa bastante cómo organizar la memoria del sistema",
+        ),
+        session_id="session-1",
+        platform="instagram",
+        external_user_id="user-1",
+    )
+
+    memory = memory_repository.get_by_user("instagram", "user-1")
+
+    assert memory is not None
+    assert len(memory.working_memory_buffer) == 2
+
 
 
 

@@ -1864,3 +1864,69 @@ The latest full test suite also passes:
 ```
 
 The main gain of this phase is directional intelligence. The system no longer only stores memory; it now begins to decide which memory matters for a turn, why it matters, and how broader medium-term context can be prepared for future orchestration without paying the latency cost of a second LLM on every response.
+
+
+## Status (XXVIII)
+
+Phase 23 completed: memory persistence policy.
+
+This phase clarifies what deserves long-term persistent storage, what should remain in working memory, and what should not be stored at all. The goal was to stop treating every useful piece of context as equally deserving of persistence.
+
+The project now provides:
+
+- persistence-policy documentation:
+  - `docs/memory_persistence_policy.md`
+- clearer separation between:
+  - persistent memory
+  - working memory
+  - compact continuity memory
+- lower retrieval authority for `user_profile`
+  - structured memory now takes priority over `user_profile`
+  - `user_profile` remains as a fallback, not a dominant source
+- cleaner persistence behavior:
+  - stable facts and durable preferences stay in structured memory
+  - situational context goes to `conversation_summary`
+  - medium-term useful fragments go to `working_memory_buffer`
+  - structured memory messages do not unnecessarily pollute summary or working memory
+- explicit persistence-policy tests:
+  - identity facts persist as structured memory
+  - preferences persist as structured memory
+  - situational context persists as summary + working memory
+  - sensitive content does not persist
+
+## Implemented architecture
+
+Persistent-vs-working decision flow
+   -> user message
+   -> `ConversationService`
+      -> classify candidate structured memory
+      -> decide whether summary should persist
+      -> decide whether working-memory buffer should update
+   -> structured memory
+      -> `stable_facts`
+      -> `preferences`
+      -> `relationship_notes`
+   -> continuity memory
+      -> `conversation_summary`
+   -> medium-term memory
+      -> `working_memory_buffer`
+
+Retrieval hierarchy improvement
+   -> structured memory first
+   -> `user_profile` only as fallback
+   -> working memory before summary fallback
+
+Current boundary:
+
+```text
+This phase improves memory governance, but it does not yet implement advanced promotion rules, forgetting policies, vector retrieval, or LLM-based orchestration.
+It establishes a cleaner persistence policy so later phases can become smarter without storing the wrong things by default.
+```
+
+The latest full test suite also passes:
+
+```text
+143 passed
+```
+
+The main gain of this phase is memory discipline. The system now has a clearer idea of what should become durable memory, what should stay as medium-term working context, and what should not persist at all.

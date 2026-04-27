@@ -39,7 +39,8 @@ def test_conversation_service_updates_normal_memory(tmp_path) -> None:
 
     assert memory.user_profile == "me llamo Marcos"
     assert memory.stable_facts == ["me llamo Marcos"]
-    assert memory.conversation_summary is not None
+    assert memory.conversation_summary is None
+    assert memory.working_memory_buffer == []
     assert turn.session_metadata["memory_updated"] is True
     assert turn.session_metadata["memory_profile_status"] == "passed"
     assert turn.session_metadata["memory_summary_status"] == "passed"
@@ -83,6 +84,9 @@ def test_conversation_service_stores_preferences_separately(tmp_path) -> None:
 
     assert memory.preferences == ["prefiero respuestas cortas"]
     assert memory.stable_facts == []
+    assert memory.conversation_summary is None
+    assert memory.working_memory_buffer == []
+
 
 
 def test_conversation_service_does_not_duplicate_structured_memory(tmp_path) -> None:

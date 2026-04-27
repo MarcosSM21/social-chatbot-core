@@ -150,20 +150,28 @@ class ConversationService:
             candidate_profile_fact,
         )
 
+        candidate_memory_type: str | None = None
+
         if candidate_profile_fact and profile_safety.status == "passed":
             memory.user_profile = self._merge_user_profile(
                 current_profile=memory.user_profile,
                 candidate_fact=candidate_profile_fact,
             )     
 
-            memory_type, memory_value = self._classify_profile_candidate(candidate_profile_fact)
+            candidate_memory_type, memory_value = self._classify_profile_candidate(candidate_profile_fact)
 
-            if memory_type == "stable_fact" and memory_value:
+            if candidate_memory_type == "stable_fact" and memory_value:
                 memory.stable_facts = self._append_unique_memory_item(items=memory.stable_facts, candidate=memory_value)   
 
-            if memory_type == "preference" and memory_value:
+            if candidate_memory_type == "preference" and memory_value:
                 memory.preferences = self._append_unique_memory_item(items=memory.preferences, candidate=memory_value)
 
+
+        latest_summary_fragment = self.memory_summarizer.summarize(
+            current_summary=None,
+            user_message=user_message.content,
+            assistant_message=assistant_message.content,
+        )
 
         candidate_summary = self.memory_summarizer.summarize(
             current_summary=memory.conversation_summary,
@@ -175,13 +183,19 @@ class ConversationService:
             candidate_summary,
         )
 
-        if summary_safety.status == "passed":
-            memory.conversation_summary = candidate_summary
+        should_persist_summary = (
+            summary_safety.status == "passed"
+            and candidate_memory_type not in {"stable_fact", "preference"}
+        )
 
-            memory.working_memory_buffer = self._append_unique_memory_item(
+        if should_persist_summary:
+            memory.conversation_summary = candidate_summary
+            memory.working_memory_buffer = self._update_working_memory_buffer(
                 items=memory.working_memory_buffer,
-                candidate=candidate_summary,
-            )[-5:]
+                candidate=latest_summary_fragment,
+                limit=5
+            )
+
 
 
         memory_updated = (
@@ -283,6 +297,65 @@ class ConversationService:
                 return items
             
         return [*items, candidate.strip()]
+    
+
+    def _update_working_memory_buffer(self, items: list[str], candidate: str, limit: int) -> list[str]:
+        normalized_candidate = candidate.strip()
+        if not normalized_candidate:
+            return items
+        
+        candidate_lower = normalized_candidate.lower()
+
+        # Exact duplicate: keep current buffer as-is.
+        for item in items:
+            if item.strip().lower() == candidate_lower:
+                return items
+            
+        # If the new item overlaps strongly with an existing one, keep the more informative version
+        for index, item in enumerate(items):
+            if self._memory_items_overlap(item, normalized_candidate):
+                existing = item.strip()
+                if len(normalized_candidate) > len(existing):
+                    updated_items = list(items)
+                    updated_items[index] = normalized_candidate
+                    return updated_items[-limit:]
+                return items
+            
+        return [*items, normalized_candidate][-limit:]
+    
+
+    def _memory_items_overlap(self, left:str, right: str) -> bool:
+        left_tokens = self._tokenize_memory_text(left)
+        right_tokens = self._tokenize_memory_text(right)
+
+        if not left_tokens or not right_tokens:
+            return False
+        
+        overlap = left_tokens & right_tokens
+        minimum_overlap = min(len(left_tokens), len(right_tokens))
+
+        return len(overlap) >= max(2, minimum_overlap // 2)
+    
+    def _tokenize_memory_text(self, text:str) -> set[str]:
+        normalized = (
+            text.lower()
+            .replace(",", " ")
+            .replace(".", " ")
+            .replace("?", " ")
+            .replace("!", " ")
+            .replace(":", " ")
+            .replace(";", " ")
+        )
+
+        return {
+            token 
+            for token in normalized.split()
+            if len(token) >= 4
+        }
+    
+
+
+
     
     def _classify_profile_candidate(self, candidate_fact: str | None) -> tuple[str | None, str | None]:
         if not candidate_fact:

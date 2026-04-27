@@ -162,12 +162,7 @@ class ConversationContextBuilder:
         preference_cues = ("prefiero", "prefer", "gusta", "like", "respuesta", "respond", "tono")
         relationship_cues = ("trato", "hablas", "tono", "broma", "vacil", "sobreexpl")
 
-        if user_memory.user_profile and (
-            self._contains_any(message_lower, identity_cues)
-            or self._has_keyword_overlap(message_lower, user_memory.user_profile)
-        ):
-            selected.append(f"Profile: {user_memory.user_profile}")
-            reasons.append("selected user_profile because the message matched identity/profile cues")
+    
 
         for fact in user_memory.stable_facts:
             if self._contains_any(message_lower, identity_cues) or self._has_keyword_overlap(message_lower, fact):
@@ -183,6 +178,13 @@ class ConversationContextBuilder:
             if self._contains_any(message_lower, relationship_cues) or self._has_keyword_overlap(message_lower, note):
                 selected.append(f"Relationship note: {note}")
                 reasons.append(f"selected relationship_note because it matched relational cues: {note}")
+
+        if not selected and user_memory.user_profile and (
+            self._contains_any(message_lower, identity_cues)
+            or self._has_keyword_overlap(message_lower, user_memory.user_profile)
+        ):
+            selected.append(f"Profile: {user_memory.user_profile}")
+            reasons.append("selected user_profile as fallback because no structured memory matched first")
 
         if not selected:
             working_memory_matches = self._select_working_memory_matches(
