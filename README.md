@@ -1999,3 +1999,77 @@ The latest full test suite also passes:
 ```
 
 The main gain of this phase is working-memory quality. The system now keeps a smaller and more coherent set of medium-term conversational fragments, which makes later retrieval and future compaction much easier to reason about.
+
+
+## Status (XXX)
+
+Phase 25 completed: memory inspection tooling.
+
+This phase makes the memory system much easier to inspect across the three levels that now matter most in the project:
+
+- storage-level truth
+- application-level memory shape
+- prompt-level memory usage
+
+The goal was not to add more memory logic, but to make the existing memory system visible enough to debug with confidence.
+
+The project now provides:
+
+- memory inspection documentation:
+  - `docs/memory_inspection_strategy.md`
+  - `docs/memory_inspection_audit.md`
+  - `docs/sqlite_memory_visual_inspection.md`
+- backend-aligned prompt inspection:
+  - `scripts/inspect_llm_prompt.py` now follows the configured memory backend instead of assuming JSON-only memory
+- user-memory inspection script:
+  - `scripts/inspect_user_memory.py`
+  - supports JSON and SQLite
+  - supports single-user inspection and platform-level listing
+- practical visual SQLite inspection path:
+  - DB Browser for SQLite as the recommended visual tool
+  - DBeaver as an alternative
+  - documented table, fields, and queries for inspecting `user_memories`
+- inspection tests covering:
+  - prompt inspection with JSON backend
+  - prompt inspection with SQLite backend
+  - user-memory inspection for JSON and SQLite
+  - platform-level listing
+
+## Implemented architecture
+
+Inspection layers after this phase
+   -> database level
+      -> SQLite file
+      -> `user_memories` table
+      -> DB Browser for SQLite / DBeaver
+   -> application level
+      -> `scripts/inspect_user_memory.py`
+      -> backend-aware repository access
+   -> prompt level
+      -> `scripts/inspect_llm_prompt.py`
+      -> retrieved memory
+      -> retrieval reasons
+      -> prompt composition
+
+Inspection workflow now recommended
+   -> inspect stored memory in SQLite
+   -> inspect app-shaped memory with `inspect_user_memory.py`
+   -> inspect selected prompt memory with `inspect_llm_prompt.py`
+   -> compare stored memory vs selected memory vs prompt content
+
+Current boundary:
+
+```text
+This phase does not build a custom visual admin panel inside the project.
+Instead, it establishes a practical local-first inspection workflow:
+SQLite visual inspection + backend-aware scripts + prompt inspection.
+That is enough to make the memory system observable without overengineering the tooling.
+```
+
+The latest full test suite also passes:
+
+```text
+170 passed
+```
+
+The main gain of this phase is observability. Memory is no longer just structured and governed; it is now much easier to inspect visually, inspect through scripts, and compare against the actual prompt behavior of the system.

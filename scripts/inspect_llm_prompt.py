@@ -11,13 +11,34 @@ from app.models.chat import ChatMessage
 from app.providers.ollama_provider import OllamaGenerationProvider
 from app.services.conversation_context_builder import ConversationContextBuilder
 from app.storage.local_chat_repository import LocalChatRepository
-from app.storage.user_memory_repository import UserMemoryRepository
+from app.core.container import build_user_memory_repository
 
-def build_prompt_preview(message: str, platform: str, external_user_id: str, session_id: str, chat_history_file: str, user_memory_file: str) -> dict:
+def build_prompt_preview(
+        message: str, 
+        platform: str,
+        external_user_id: str,
+        session_id: str, 
+        chat_history_file: str | None = None,
+        user_memory_file: str | None = None,
+        sqlite_database_path: str | None = None,
+        memory_storage_backend: str | None = None,
+        ) -> dict:
     settings = Settings.from_env()
 
-    chat_repository = LocalChatRepository(chat_history_file)
-    user_memory_repository = UserMemoryRepository(user_memory_file)
+    if chat_history_file is not None:
+        settings.chat_history_path = chat_history_file
+
+    if memory_storage_backend is not None:
+        settings.memory_storage_backend = memory_storage_backend
+
+    if user_memory_file is not None:
+        settings.json_user_memory_path = user_memory_file
+
+    if sqlite_database_path is not None:
+        settings.sqlite_database_path = sqlite_database_path
+
+    chat_repository = LocalChatRepository(settings.chat_history_path)
+    user_memory_repository = build_user_memory_repository(settings)
 
     recent_history = chat_repository.get_recent_turns(session_id=session_id, limit=settings.max_history_turns)
 
@@ -107,14 +128,34 @@ def main() -> None:
     parser.add_argument("--platform", default="instagram", help="Platform name.")
     parser.add_argument("--external-user-id", default="prompt-preview-user", help="External user id.")
     parser.add_argument("--session-id", default="prompt-preview-session", help="Session id.")
-    parser.add_argument("--chat-history-file", default="data/chat_history.json", help="Chat history file.")
-    parser.add_argument("--user-memory-file", default="data/user_memories.json", help="User memory file.")
+    parser.add_argument(
+        "--chat-history-file",
+        default=None,
+        help="Optional chat history file override. Defaults to configured settings.",
+    )
+    parser.add_argument(
+        "--user-memory-file",
+        default=None,
+        help="Optional JSON user memory file override when using the JSON backend.",
+    )
     parser.add_argument(
         "--format",
         choices=["json", "markdown"],
         default="markdown",
         help="Output format.",
     )
+    parser.add_argument(
+        "--memory-storage-backend",
+        choices=["json", "sqlite"],
+        default=None,
+        help="Optional memory backend override. Defaults to the configured backend.",
+    )
+    parser.add_argument(
+        "--sqlite-database-path",
+        default=None,
+        help="Optional SQLite database path override when using the SQLite backend.",
+    )
+
 
     args = parser.parse_args()
 
@@ -125,7 +166,10 @@ def main() -> None:
         session_id=args.session_id,
         chat_history_file=args.chat_history_file,
         user_memory_file=args.user_memory_file,
+        sqlite_database_path=args.sqlite_database_path,
+        memory_storage_backend=args.memory_storage_backend,
     )
+
 
     if args.format == "json":
         print(json.dumps(preview, indent=2, ensure_ascii=False))
