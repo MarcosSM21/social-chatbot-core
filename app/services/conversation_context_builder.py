@@ -31,6 +31,13 @@ class ConversationContextBuilder:
             current_message=message.content,
         )
 
+        compacted_context = self._build_compacted_turn_context(
+            user_memory=user_memory,
+            current_message=message.content,
+            retrieved_memory=retrieved_memory,
+            recent_history=recent_history,
+        )
+
         safety_policy = self._build_safety_policy()
         character = self._build_character()
 
@@ -51,6 +58,14 @@ class ConversationContextBuilder:
             retrieved_memory_reasons=retrieved_memory_reasons,
             retrieval_strategy="rule_based_memory_selector_v1",
             working_memory_buffer=user_memory.working_memory_buffer,
+            compacted_identity_context=compacted_context["identity_context"],
+            compacted_preference_context=compacted_context["preference_context"],
+            compacted_current_topic_context=compacted_context["current_topic_context"],
+            compacted_current_state_context=compacted_context["current_state_context"],
+            compacted_relationship_context=compacted_context["relationship_context"],
+            compacted_episode_continuity=compacted_context["episode_continuity"],
+            compaction_strategy="rule_based_compaction_v1",
+
         )
 
     def _build_system_instructions(self) -> str:
@@ -247,5 +262,87 @@ class ConversationContextBuilder:
             return [f"Working memory: {item}" for item in matching_items[-1:]]
         
         return [f"Working memory: {working_memory_buffer[-1]}"]
+    
+
+
+    def _build_compacted_turn_context(
+        self,
+        user_memory: UserMemory,
+        current_message: str,
+        retrieved_memory: list[str] | None,
+        recent_history: list[ChatTurn],
+    ) -> dict[str, list[str] | str | None]:
+        identity_context: list[str] = []
+        preference_context: list[str] = []
+        current_topic_context: list[str] = []
+        current_state_context: list[str] = []
+        relationship_context: str | None = None
+        episode_continuity: str | None = None
+
+        for item in retrieved_memory or []:
+            if item.startswith("Stable fact:") or item.startswith("Profile:"):
+                identity_context.append(item)
+
+            elif item.startswith("Preference:"):
+                preference_context.append(item)
+
+            elif item.startswith("Relationship note:"):
+                if relationship_context is None:
+                    relationship_context = item
+
+            elif item.startswith("Working memory:") or item.startswith("Summary:"):
+                current_topic_context.append(item)
+
+            else: 
+                current_topic_context.append(item)
+
+        if not identity_context and user_memory.stable_facts:
+            identity_context = [f"Stable fact: {fact}" for fact in user_memory.stable_facts[:2]]
+
+        if not preference_context and user_memory.preferences:
+            preference_context = [f"Preference: {preference}" for preference in user_memory.preferences[:2]]
+
+        if not current_topic_context and user_memory.conversation_summary:
+            current_topic_context = [f"Summary: {user_memory.conversation_summary}"]
+
+        if user_memory.working_memory_buffer:
+            latest_fragment = user_memory.working_memory_buffer[-1]
+            if self._looks_like_current_state_fragment(latest_fragment):
+                current_state_context = [f"Current state: {latest_fragment}"]
+
+        if recent_history:
+            episode_continuity = "continuing_recent_conversation"
+        else:
+            episode_continuity = "no_recent_history"
+
+        return {
+            "identity_context": self._deduplicate_memory_items(identity_context, limit=2),
+            "preference_context": self._deduplicate_memory_items(preference_context, limit=2),
+            "current_topic_context": self._deduplicate_memory_items(current_topic_context, limit=3),
+            "current_state_context": self._deduplicate_memory_items(current_state_context, limit=1),
+            "relationship_context": relationship_context,
+            "episode_continuity": episode_continuity,
+        }
+    
+
+    def _looks_like_current_state_fragment(self, text: str) -> bool:
+        lowered = text.lower()
+
+        state_cues = (
+            "tired",
+            "overwhelmed",
+            "worried",
+            "stressed",
+            "blocked",
+            "motivated",
+            "frustrated",
+            "cansado",
+            "agobiado",
+            "preocup",
+            "bloque",
+        )
+
+        return any(cue in lowered for cue in state_cues)
+
 
         

@@ -2073,3 +2073,78 @@ The latest full test suite also passes:
 ```
 
 The main gain of this phase is observability. Memory is no longer just structured and governed; it is now much easier to inspect visually, inspect through scripts, and compare against the actual prompt behavior of the system.
+
+
+## Status (XXXI)
+
+Phase 26 completed: context compaction upgrade.
+
+This phase introduces the first explicit compacted turn context layer between memory retrieval and the final prompt. The goal was to stop treating all useful memory layers as equally prompt-facing and start packaging a smaller, cleaner, and more intentional context block for each turn.
+
+The project now provides:
+
+- context compaction documentation:
+  - `docs/context_compaction_goal.md`
+  - `docs/context_compaction_competition_map.md`
+  - `docs/compacted_turn_context_contract.md`
+- a first explicit compacted context representation inside `ConversationContext`:
+  - `compacted_identity_context`
+  - `compacted_preference_context`
+  - `compacted_current_topic_context`
+  - `compacted_current_state_context`
+  - `compacted_relationship_context`
+  - `compacted_episode_continuity`
+  - `compaction_strategy`
+- rule-based compacted turn context construction in `ConversationContextBuilder`
+- prompt compaction in `OllamaGenerationProvider`:
+  - the prompt now uses a single `Compacted turn context` block instead of injecting several overlapping memory sections independently
+- compaction tests covering:
+  - compacted identity memory
+  - compacted topic memory from working memory
+  - episode continuity visibility
+  - compatibility with JSON and SQLite backends
+
+## Implemented architecture
+
+Context flow after this phase
+   -> stored memory layers
+      -> `stable_facts`
+      -> `preferences`
+      -> `relationship_notes`
+      -> `conversation_summary`
+      -> `working_memory_buffer`
+   -> retrieval / selection
+      -> `retrieved_memory`
+      -> `retrieved_memory_reasons`
+   -> rule-based compaction
+      -> compacted identity context
+      -> compacted preference context
+      -> compacted current topic context
+      -> compacted current state context
+      -> compacted relationship context
+      -> compacted episode continuity
+   -> prompt
+      -> single `Compacted turn context` block
+
+Prompt authority improvement
+   -> raw memory layers still exist for inspection and debugging
+   -> compacted context now has stronger prompt authority
+   -> prompt composition is less redundant than before
+
+Current boundary:
+
+```text
+This phase introduces the first explicit final-turn compaction layer,
+but it is still rule-based.
+It does not yet implement semantic compaction with embeddings, vector retrieval,
+or a true LLM-based orchestrator.
+What it does establish is a cleaner contract between available memory and prompt-facing memory.
+```
+
+The latest full test suite also passes:
+
+```text
+176 passed
+```
+
+The main gain of this phase is prompt quality architecture. The system now distinguishes more clearly between stored memory, selected memory, and the final compacted turn context that deserves prompt space.

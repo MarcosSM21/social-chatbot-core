@@ -66,6 +66,14 @@ def build_prompt_preview(
             "retrieved_memory_reasons": context.retrieved_memory_reasons,
             "retrieval_strategy": context.retrieval_strategy,
             "working_memory_buffer": context.working_memory_buffer,
+            "compacted_identity_context": context.compacted_identity_context,
+            "compacted_preference_context": context.compacted_preference_context,
+            "compacted_current_topic_context": context.compacted_current_topic_context,
+            "compacted_current_state_context": context.compacted_current_state_context,
+            "compacted_relationship_context": context.compacted_relationship_context,
+            "compacted_episode_continuity": context.compacted_episode_continuity,
+            "compaction_strategy": context.compaction_strategy,
+
         },
         "message_count": len(messages),
         "messages": messages,
@@ -94,6 +102,14 @@ def format_markdown(preview: dict) -> str:
         f"- Retrieved memory reasons: `{preview['memory']['retrieved_memory_reasons']}`",
         f"- Retrieval strategy: `{preview['memory']['retrieval_strategy']}`",
         f"- Working memory buffer: `{preview['memory']['working_memory_buffer']}`",
+        f"- Compacted identity context: `{preview['memory']['compacted_identity_context']}`",
+        f"- Compacted preference context: `{preview['memory']['compacted_preference_context']}`",
+        f"- Compacted current topic context: `{preview['memory']['compacted_current_topic_context']}`",
+        f"- Compacted current state context: `{preview['memory']['compacted_current_state_context']}`",
+        f"- Compacted relationship context: `{preview['memory']['compacted_relationship_context']}`",
+        f"- Compacted episode continuity: `{preview['memory']['compacted_episode_continuity']}`",
+        f"- Compaction strategy: `{preview['memory']['compaction_strategy']}`",
+
 
 
         "",

@@ -24,6 +24,14 @@ class ConversationContext:
     retrieved_memory_reasons: list[str] | None = None
     retrieval_strategy: str | None = None
     working_memory_buffer: list[str] | None = None
+    compacted_identity_context: list[str] | None = None
+    compacted_preference_context: list[str] | None = None
+    compacted_current_topic_context: list[str] | None = None
+    compacted_current_state_context: list[str] | None = None
+    compacted_relationship_context: str | None = None
+    compacted_episode_continuity: str | None = None
+    compaction_strategy: str | None = None
+
 
 
 
@@ -46,4 +54,11 @@ class ConversationContext:
             "retrieved_memory_reasons": self.retrieved_memory_reasons,
             "retrieval_strategy": self.retrieval_strategy,
             "working_memory_buffer": self.working_memory_buffer,
+            "compacted_identity_context": self.compacted_identity_context,
+            "compacted_preference_context": self.compacted_preference_context,
+            "compacted_current_topic_context": self.compacted_current_topic_context,
+            "compacted_current_state_context": self.compacted_current_state_context,
+            "compacted_relationship_context": self.compacted_relationship_context,
+            "compacted_episode_continuity": self.compacted_episode_continuity,
+            "compaction_strategy": self.compaction_strategy,
         }

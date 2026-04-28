@@ -78,11 +78,11 @@ def test_build_prompt_preview_includes_user_memory(tmp_path) -> None:
 
     contents = "\n".join(message["content"] for message in preview["messages"])
 
-    assert "Known stable facts about this user" in contents
-    assert "me llamo Marcos" in contents
-    assert "Known user preferences" in contents
-    assert "prefiero respuestas cortas" in contents
-    assert "Relationship notes" in contents
+    assert "Compacted turn context:" in contents
+    assert "Identity context:" in contents
+    assert "Stable fact: me llamo Marcos" in contents
+    assert "Preference context:" in contents
+    assert "Preference: prefiero respuestas cortas" in contents
 
 
 def test_prompt_system_instructions_do_not_use_bot_name_as_identity(tmp_path, monkeypatch) -> None:
@@ -223,7 +223,8 @@ def test_build_prompt_preview_includes_retrieved_memory_block(tmp_path) -> None:
 
     contents = "\n".join(message["content"] for message in preview["messages"])
 
-    assert "Relevant memory for this turn" in contents
+    assert "Compacted turn context:" in contents
+    assert "Identity context:" in contents
     assert "Stable fact: me llamo Marcos" in contents
 
 def test_build_prompt_preview_can_use_working_memory_in_retrieved_memory_block(tmp_path) -> None:
@@ -254,7 +255,8 @@ def test_build_prompt_preview_can_use_working_memory_in_retrieved_memory_block(t
 
     contents = "\n".join(message["content"] for message in preview["messages"])
 
-    assert "Relevant memory for this turn" in contents
+    assert "Compacted turn context:" in contents
+    assert "Current topic context:" in contents
     assert "Working memory: The user is working on a project and wants the next concrete step." in contents
     assert preview["memory"]["retrieved_memory_reasons"] is not None
 
@@ -287,7 +289,40 @@ def test_build_prompt_preview_uses_configured_sqlite_backend(tmp_path) -> None:
 
     contents = "\n".join(message["content"] for message in preview["messages"])
 
-    assert "Relevant memory for this turn" in contents
+    assert "Compacted turn context:" in contents
+    assert "Identity context:" in contents
     assert "Stable fact: me llamo Marcos" in contents
 
+
+def test_build_prompt_preview_includes_compacted_turn_context_block(tmp_path) -> None:
+    chat_history_file = tmp_path / "chat_history.json"
+    user_memory_file = tmp_path / "user_memories.json"
+
+    memory_repository = UserMemoryRepository(str(user_memory_file))
+    memory_repository.save(
+        UserMemory(
+            platform="instagram",
+            external_user_id="user-1",
+            stable_facts=["me llamo Marcos"],
+            preferences=["prefiero respuestas cortas"],
+            working_memory_buffer=[
+                "The user is tired but wants to keep making progress with the project."
+            ],
+            conversation_summary="The user wants practical progress on the project.",
+        )
+    )
+
+    preview = build_prompt_preview(
+        message="qué harías ahora con el proyecto?",
+        platform="instagram",
+        external_user_id="user-1",
+        session_id="session-1",
+        chat_history_file=str(chat_history_file),
+        user_memory_file=str(user_memory_file),
+        memory_storage_backend="json",
+    )
+
+    contents = "\n".join(message["content"] for message in preview["messages"])
+
+    assert "Compacted turn context:" in contents
 

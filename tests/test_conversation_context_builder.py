@@ -249,3 +249,41 @@ def test_context_builder_can_still_use_user_profile_as_fallback(tmp_path) -> Non
     assert context.retrieved_memory_reasons == [
         "selected user_profile as fallback because no structured memory matched first"
     ]
+
+
+def test_context_builder_builds_compacted_turn_context_from_memory_layers(tmp_path) -> None:
+    user_memory_file = tmp_path / "user_memories.json"
+
+    settings = Settings.from_env()
+    user_memory_repository = UserMemoryRepository(str(user_memory_file))
+    user_memory_repository.save(
+        UserMemory(
+            platform="instagram",
+            external_user_id="user-1",
+            stable_facts=["me llamo Marcos"],
+            preferences=["prefiero respuestas cortas"],
+            working_memory_buffer=[
+                "The user is tired but wants to keep making progress with the project."
+            ],
+            conversation_summary="The user wants practical progress on the project.",
+        )
+    )
+
+    builder = ConversationContextBuilder(
+        settings=settings,
+        user_memory_repository=user_memory_repository,
+    )
+
+    context = builder.build(
+        platform="instagram",
+        external_user_id="user-1",
+        message=ChatMessage(role="user", content="qué harías ahora con el proyecto?"),
+        recent_history=[],
+    )
+
+    assert context.compacted_identity_context is not None
+    assert context.compacted_preference_context is not None
+    assert context.compacted_current_topic_context is not None
+    assert context.compacted_current_state_context is not None
+    assert context.compaction_strategy == "rule_based_compaction_v1"
+

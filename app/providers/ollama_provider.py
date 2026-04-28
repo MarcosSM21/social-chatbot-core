@@ -59,49 +59,46 @@ class OllamaGenerationProvider:
             {"role": "system", "content": context.character_instructions},
             ]
         
-        if context.user_profile:
-            messages.append({"role": "system", "content": f"User profile: {context.user_profile}"})
+        compacted_sections: list[str] = []
 
-        if context.retrieved_memory:
-            retrieved_memory = "\n".join(f"- {item}" for item in context.retrieved_memory)
+        if context.compacted_identity_context:
+            compacted_sections.append(
+                "Identity context:\n" + "\n".join(f"- {item}" for item in context.compacted_identity_context)
+            )
+
+        if context.compacted_preference_context:
+            compacted_sections.append(
+                "Preference context:\n" + "\n".join(f"- {item}" for item in context.compacted_preference_context)
+            )
+
+        if context.compacted_current_topic_context:
+            compacted_sections.append(
+                "Current topic context:\n" + "\n".join(f"- {item}" for item in context.compacted_current_topic_context)
+            )
+
+        if context.compacted_current_state_context:
+            compacted_sections.append(
+                "Current state context:\n" + "\n".join(f"- {item}" for item in context.compacted_current_state_context)
+            )
+
+        if context.compacted_relationship_context:
+            compacted_sections.append(
+                f"Relationship context:\n- {context.compacted_relationship_context}"
+            )
+
+        if context.compacted_episode_continuity:
+            compacted_sections.append(
+                f"Episode continuity:\n- {context.compacted_episode_continuity}"
+            )
+
+        if compacted_sections:
             messages.append(
                 {
                     "role": "system",
-                    "content": f"Relevant memory for this turn:\n{retrieved_memory}",
+                    "content": "Compacted turn context:\n\n" + "\n\n".join(compacted_sections),
                 }
             )
 
-
-        if context.stable_facts:
-            stable_facts = "\n".join(f"- {fact}" for fact in context.stable_facts)
-            messages.append(
-                {
-                    "role": "system",
-                    "content": f"Known stable facts about this user:\n{stable_facts}",
-                }
-            )
-
-        if context.preferences:
-            preferences = "\n".join(f"- {preference}" for preference in context.preferences)
-            messages.append(
-                {
-                    "role": "system",
-                    "content": f"Known user preferences:\n{preferences}",
-                }
-            )
-
-        if context.relationship_notes:
-            relationship_notes = "\n".join(f"- {note}" for note in context.relationship_notes)
-            messages.append(
-                {
-                    "role": "system",
-                    "content": f"Relationship notes:\n{relationship_notes}",
-                }
-            )
-
-
-        if context.conversation_summary:
-            messages.append({"role": "system", "content": f"Conversation summary: {context.conversation_summary}"})
 
         history_messages = self._build_history_messages(context.recent_history)
         messages.extend(history_messages)
