@@ -41,6 +41,7 @@ class ConversationService:
         external_user_id: str,
     ) -> ChatTurn:
         recent_history = self.chat_repository.get_recent_turns(session_id, limit=3)
+        session_turn_count = self._get_session_turn_count(session_id)
 
         existing_memory = self.user_memory_repository.get_by_user(
             platform=platform,
@@ -56,8 +57,17 @@ class ConversationService:
             recent_history=recent_history,
         )
 
-        assistant_message = self.response_engine.generate_response(context=context)
-        safety_validation = self.response_safety_validator.validate(assistant_message.content)
+        raw_assistant_message = self.response_engine.generate_response(context=context)
+        redirect_policy_result = self._apply_instagram_redirect_template_policy(
+            assistant_text=raw_assistant_message.content,
+            user_message=message.content,
+            platform=platform,
+            character_id=context.character.character_id,
+            session_turn_count=session_turn_count,
+            recent_history=recent_history,
+        )
+
+        safety_validation = self.response_safety_validator.validate(redirect_policy_result["text"])
 
         assistant_message = ChatMessage(
             role="assistant",
@@ -93,6 +103,9 @@ class ConversationService:
                 "safety_validation_status": safety_validation.status,
                 "safety_validation_detail": safety_validation.detail,
                 "safety_matched_rule": safety_validation.matched_rule,
+                "instagram_redirect_policy_applied": redirect_policy_result["applied"],
+                "instagram_redirect_trigger": redirect_policy_result["trigger"],
+                "instagram_redirect_template": redirect_policy_result["template"],
             },
         )
 
@@ -119,6 +132,158 @@ class ConversationService:
             or memory.relationship_notes
             or memory.working_memory_buffer
         )
+
+    def _get_session_turn_count(self, session_id: str) -> int:
+        return len(self.chat_repository.get_recent_turns(session_id, limit=1000))
+
+    def _apply_instagram_redirect_template_policy(
+        self,
+        assistant_text: str,
+        user_message: str,
+        platform: str,
+        character_id: str,
+        session_turn_count: int,
+        recent_history: list[ChatTurn],
+    ) -> dict[str, str | bool | None]:
+        if not self._is_instagram_redirect_policy_active(platform=platform, character_id=character_id):
+            return {
+                "text": assistant_text,
+                "applied": False,
+                "trigger": None,
+                "template": None,
+            }
+
+        trigger: str | None = None
+
+        if self._matches_sexual_private_direct_trigger(user_message):
+            trigger = "sexual_private_direct"
+        elif self._matches_repetitive_low_value_trigger(user_message=user_message, recent_history=recent_history):
+            trigger = "repetitive_low_value"
+        elif session_turn_count >= 2:
+            trigger = "turn_limit"
+
+        if trigger is None:
+            return {
+                "text": assistant_text,
+                "applied": False,
+                "trigger": None,
+                "template": None,
+            }
+
+        template = self._choose_instagram_redirect_template(
+            trigger=trigger,
+            user_message=user_message,
+            session_turn_count=session_turn_count,
+        )
+
+        return {
+            "text": template,
+            "applied": True,
+            "trigger": trigger,
+            "template": template,
+        }
+
+    def _is_instagram_redirect_policy_active(self, platform: str, character_id: str) -> bool:
+        return platform == "instagram" or character_id.startswith("laia_instagram_")
+
+    def _matches_sexual_private_direct_trigger(self, user_message: str) -> bool:
+        lowered = user_message.lower()
+        cues = (
+            "caliente",
+            "morb",
+            "sexo",
+            "sexual",
+            "privado",
+            "intimo",
+            "íntimo",
+            "desnuda",
+            "me pones",
+            "te haria",
+            "te haría",
+            "hacerte",
+            "follar",
+            "cogerte",
+            "tocarte",
+            "tetas",
+            "coño",
+            "polla",
+            "rabo",
+            "verga",
+            "culo",
+            "nalgas",
+            "vagina",
+            "pechos",
+            "senos",
+        )
+        return any(cue in lowered for cue in cues)
+
+    def _matches_repetitive_low_value_trigger(
+        self,
+        user_message: str,
+        recent_history: list[ChatTurn],
+    ) -> bool:
+        normalized_message = self._normalize_redirect_trigger_text(user_message)
+        recent_user_messages = [
+            self._normalize_redirect_trigger_text(turn.user_message.content)
+            for turn in recent_history
+        ]
+
+        low_value_cues = (
+            "y que mas",
+            "y que más",
+            "dime algo",
+            "hablame",
+            "háblame",
+            "contesta",
+            "estas ahi",
+            "estás ahí",
+            "que haces",
+            "qué haces",
+            "manda foto",
+            "mandame algo",
+            "respóndeme",
+            "respondeme",
+        )
+
+        if any(cue in normalized_message for cue in low_value_cues):
+            return True
+
+        if normalized_message and normalized_message in recent_user_messages[-2:] and len(normalized_message) <= 40:
+            return True
+
+        return False
+
+    def _normalize_redirect_trigger_text(self, text: str) -> str:
+        return " ".join(text.lower().split())
+
+    def _choose_instagram_redirect_template(
+        self,
+        trigger: str,
+        user_message: str,
+        session_turn_count: int,
+    ) -> str:
+        template_map = {
+            "sexual_private_direct": [
+                "por aqui no me sale hablar de eso... pero alli igual si te gusto mas: https://mock-laia.com",
+                "mmm por insta no sigo con ese tono, pero por aqui puede ser distinto: https://mock-laia.com",
+                "por aqui no me abro tanto... si quieres otro rollo, entra aqui: https://mock-laia.com",
+            ],
+            "repetitive_low_value": [
+                
+                "por aqui me pierdo un poco con conversaciones asi... si te apetece seguir de verdad, entra aqui: https://mock-laia.com",
+                "instagram se me queda pequeño para eso. si te da curiosidad, mejor por aqui: https://mock-laia.com",
+                "por aqui no me suelo quedar mucho mas... si quieres seguir bien, entra: https://mock-laia.com",
+            ],
+            "turn_limit": [
+                "por aqui ya te he dejado bastante de mi... si quieres un poco mas, es aqui: https://mock-laia.com",
+                "instagram me gusta para poco rato. si quieres seguir conmigo, entra aqui: https://mock-laia.com",
+                "hasta aqui por insta... si te apetece verme de otra manera, entra: https://mock-laia.com",
+            ],
+        }
+
+        variants = template_map[trigger]
+        selector = (len(user_message.strip()) + session_turn_count) % len(variants)
+        return variants[selector]
     
     def _update_user_memory(
         self,

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from app.core.settings import Settings
 from app.engine.response_engine import ResponseEngine
 from app.models.chat import ChatMessage
@@ -10,9 +12,11 @@ from app.storage.local_chat_repository import LocalChatRepository
 from app.storage.user_memory_repository import UserMemoryRepository
 
 
-def build_service(tmp_path) -> tuple[ConversationService, UserMemoryRepository]:
+def build_service(tmp_path, character_file: str | None = None) -> tuple[ConversationService, UserMemoryRepository]:
     settings = Settings.from_env()
     settings.generation_provider = "mock"
+    if character_file is not None:
+        settings.character_file = character_file
 
     user_memory_repository = UserMemoryRepository(str(tmp_path / "user_memories.json"))
     service = ConversationService(
@@ -245,4 +249,75 @@ def test_working_memory_buffer_allows_distinct_candidate_when_not_reformulation(
         "The user wants an easy visual way to inspect SQLite memory.",
     ]
 
+
+def test_instagram_redirect_policy_replaces_response_for_sexual_trigger(tmp_path) -> None:
+    service, _ = build_service(
+        tmp_path,
+        character_file="characters/laia_instagram_sirena.json",
+    )
+
+    turn = service.process_message(
+        message=ChatMessage(role="user", content="me pones mucho"),
+        session_id="session-1",
+        platform="api",
+        external_user_id="user-1",
+    )
+
+    assert "https://mock-laia.com" in turn.assistant_message.content
+    assert turn.session_metadata["instagram_redirect_policy_applied"] is True
+    assert turn.session_metadata["instagram_redirect_trigger"] == "sexual_private_direct"
+
+
+def test_instagram_redirect_policy_replaces_response_for_turn_limit_trigger(tmp_path) -> None:
+    service, _ = build_service(
+        tmp_path,
+        character_file="characters/laia_instagram_sirena.json",
+    )
+
+    service.process_message(
+        message=ChatMessage(role="user", content="hola"),
+        session_id="session-1",
+        platform="api",
+        external_user_id="user-1",
+    )
+    service.process_message(
+        message=ChatMessage(role="user", content="que tal"),
+        session_id="session-1",
+        platform="api",
+        external_user_id="user-1",
+    )
+    turn = service.process_message(
+        message=ChatMessage(role="user", content="bueno"),
+        session_id="session-1",
+        platform="api",
+        external_user_id="user-1",
+    )
+
+    assert "https://mock-laia.com" in turn.assistant_message.content
+    assert turn.session_metadata["instagram_redirect_policy_applied"] is True
+    assert turn.session_metadata["instagram_redirect_trigger"] == "turn_limit"
+
+
+def test_instagram_redirect_policy_replaces_response_for_repetitive_low_value_trigger(tmp_path) -> None:
+    service, _ = build_service(
+        tmp_path,
+        character_file="characters/laia_instagram_sirena.json",
+    )
+
+    service.process_message(
+        message=ChatMessage(role="user", content="hola"),
+        session_id="session-1",
+        platform="api",
+        external_user_id="user-1",
+    )
+    turn = service.process_message(
+        message=ChatMessage(role="user", content="y que mas"),
+        session_id="session-1",
+        platform="api",
+        external_user_id="user-1",
+    )
+
+    assert "https://mock-laia.com" in turn.assistant_message.content
+    assert turn.session_metadata["instagram_redirect_policy_applied"] is True
+    assert turn.session_metadata["instagram_redirect_trigger"] == "repetitive_low_value"
 

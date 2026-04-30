@@ -2148,3 +2148,75 @@ The latest full test suite also passes:
 ```
 
 The main gain of this phase is prompt quality architecture. The system now distinguishes more clearly between stored memory, selected memory, and the final compacted turn context that deserves prompt space.
+
+
+## Status (XXXII)
+
+Phase 27 completed: Laia Instagram acquisition behavior.
+
+This phase did not try to perfect Laia as a final character. Its goal was to make Laia's Instagram behavior function as a real V1 acquisition layer: more selective, less eager, more coherent, and capable of filtering and redirecting users without relying entirely on the LLM to improvise business-critical behavior.
+
+The project now provides:
+
+- character-quality documentation centered only on Laia:
+  - `docs/character_quality_idea_map.md`
+  - `docs/character_block_1_initiative_and_availability.md`
+  - `docs/dual_character_strategy.md`
+  - `docs/instagram_v1_strategy_rule.md`
+  - `docs/sirena_laia_core_identity.md`
+  - `docs/laia_instagram_manifestation.md`
+  - `docs/laia_premium_manifestation.md`
+  - `docs/character_quality_phase_closure.md`
+- a stable core identity for `Sirena-Laia`
+- separation between:
+  - core identity
+  - Instagram manifestation
+  - premium manifestation
+- a dedicated Instagram character variant:
+  - `characters/laia_instagram_sirena.json`
+- a cleaner Instagram character prompt footprint:
+  - less backstory weight
+  - less inner-world overload
+  - less strategic redundancy inside the character JSON
+  - stronger focus on tone, distance, brevity, and magnetism
+- an Instagram redirect template policy in `ConversationService`
+- three redirect trigger families:
+  - sexual / overly private direction
+  - repetitive / low-value direction
+  - turn-limit direction
+
+## Implemented architecture
+
+Laia identity flow after this phase
+   -> `Sirena-Laia` core identity
+   -> channel manifestation
+      -> Instagram Laia
+      -> Premium Laia
+   -> Instagram character JSON
+      -> `laia_instagram_sirena.json`
+   -> LLM generates tone and first-layer reply
+   -> redirect template policy adds deterministic control when needed
+
+Instagram V1 behavior after this phase
+   -> brief, selective, lower-availability Laia
+   -> fewer unnecessary follow-up hooks
+   -> stronger filtering of low-value DM behavior
+   -> deterministic redirect support instead of relying only on prompt obedience
+
+Current boundary:
+
+```text
+This phase makes Laia's Instagram behavior functionally usable for V1,
+but it does not try to make it fully elegant yet.
+Redirect copy can still become softer and more seductive,
+audio-assisted redirection remains future work,
+and more advanced intent classification is still unnecessary for V1.
+```
+
+Relevant service-level validation now passes for the new redirect behavior:
+
+```text
+tests/test_conversation_service.py -> 14 passed
+```
+
+The main gain of this phase is product control. Laia on Instagram is no longer just a character prompt; she now behaves as a working first-layer acquisition and filtering mechanism for V1.
