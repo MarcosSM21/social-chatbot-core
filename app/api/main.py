@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import time
+import asyncio
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse
@@ -25,6 +26,9 @@ from app.api.schemas import (
     CharacterListResponse,
     CharacterSummaryResponse,
     ActiveCharacterResponse,
+    InstagramBlockedUserResponse,
+    InstagramGuardrailsSummaryResponse,
+    InstagramGuardrailActionResponse,
 )
 
 from app.channels.http_channel_result import HttpChannelResult
@@ -49,6 +53,10 @@ from app.storage.provider_raw_payload_repository import ProviderRawPayloadReposi
 from app.outbound.instagram_sender import InstagramOutboundSender
 from app.outbound.result import OutboundSendResult
 from app.storage.character_repository import CharacterRepository
+from app.models.instagram_bundle import  PendingInstagramBundle
+from app.storage.instagram_admission_repository import InstagramAdmissionRepository
+from app.storage.instagram_turn_budget_repository import InstagramTurnBudgetRepository
+
 
 
 
@@ -63,6 +71,16 @@ app = FastAPI(
 
 settings = Settings.from_env()
 _instagram_last_reply_by_user: dict[str, float] = {}
+_instagram_pending_bundles: dict[str, PendingInstagramBundle] = {}
+_instagram_bundle_tasks: dict[str, asyncio.Task] = {}
+_instagram_buffered_message_ids: set[str] = set()
+instagram_admission_repository = InstagramAdmissionRepository(
+    settings.instagram_admitted_users_path
+)
+instagram_turn_budget_repository = InstagramTurnBudgetRepository(
+    settings.instagram_blocked_users_path
+)
+
 
 
 ###### RUTAS AUXILIARES ##########
@@ -217,6 +235,35 @@ def create_internal_message(request: MessageRequest, _: None = Depends(require_i
         session_id=channel_result.turn.session_id
     )
 
+@app.post("/internal/messages/bundled", response_model=WebhookEventResponse)
+async def create_internal_bundled_message(
+    request: MessageRequest,
+    _: None = Depends(require_internal_api_key),
+) -> WebhookEventResponse:
+    event = ExternalMessageEvent(
+        platform="api",
+        conversation_id=request.session_id,
+        user_id="api-user",
+        message_text=request.message,
+        channel_metadata={
+            "source": "internal_api_bundled",
+        },
+    )
+
+    enqueue_status = _enqueue_instagram_event(event)
+
+    if enqueue_status == "duplicate_buffered":
+        return WebhookEventResponse(
+            status="ignored",
+            detail="Duplicate buffered internal message ignored.",
+        )
+
+    return WebhookEventResponse(
+        status="accepted",
+        detail="Internal message buffered for bundling.",
+    )
+
+
 ##############################################################
 
 
@@ -354,6 +401,72 @@ def get_operational_summary(platform: str | None = None, _: None = Depends(requi
     )
 
 
+@app.get("/internal/instagram/guardrails/summary", response_model=InstagramGuardrailsSummaryResponse)
+def get_instagram_guardrails_summary(_: None = Depends(require_internal_api_key)) -> InstagramGuardrailsSummaryResponse:
+    admitted_users = instagram_admission_repository.list_user_ids()
+    blocked_data = instagram_turn_budget_repository.list_records()
+
+    blocked_users = [
+        InstagramBlockedUserResponse(
+            external_user_id=user_id,
+            turn_count=int(record.get("turn_count", 0)),
+            blocked=bool(record.get("blocked", False)),
+        )
+        for user_id, record in blocked_data.items()
+    ]
+
+    return InstagramGuardrailsSummaryResponse(
+        auto_admit_limit=settings.instagram_auto_admit_limit,
+        turn_budget_limit=settings.instagram_turn_budget_limit,
+        admitted_count=len(admitted_users),
+        blocked_count=len([user for user in blocked_users if user.blocked]),
+        admitted_users=admitted_users,
+        blocked_users=blocked_users,
+    )
+
+
+@app.post("/internal/instagram/admission/{external_user_id}", response_model=InstagramGuardrailActionResponse)
+def add_instagram_admitted_user(
+    external_user_id: str,
+    _: None = Depends(require_internal_api_key),
+) -> InstagramGuardrailActionResponse:
+    added = instagram_admission_repository.add_user_id(external_user_id)
+
+    return InstagramGuardrailActionResponse(
+        external_user_id=external_user_id,
+        success=True,
+        detail="User admitted." if added else "User was already admitted.",
+    )
+
+@app.delete("/internal/instagram/admission/{external_user_id}", response_model=InstagramGuardrailActionResponse)
+def remove_instagram_admitted_user(
+    external_user_id: str,
+    _: None = Depends(require_internal_api_key),
+) -> InstagramGuardrailActionResponse:
+    removed = instagram_admission_repository.remove_user_id(external_user_id)
+
+    return InstagramGuardrailActionResponse(
+        external_user_id=external_user_id,
+        success=removed,
+        detail="User removed from admission list." if removed else "User was not in admission list.",
+    )
+
+
+@app.delete("/internal/instagram/blocklist/{external_user_id}", response_model=InstagramGuardrailActionResponse)
+def reset_instagram_blocked_user(
+    external_user_id: str,
+    _: None = Depends(require_internal_api_key),
+) -> InstagramGuardrailActionResponse:
+    reset = instagram_turn_budget_repository.reset_user(external_user_id)
+
+    return InstagramGuardrailActionResponse(
+        external_user_id=external_user_id,
+        success=reset,
+        detail="User turn budget was reset." if reset else "User not found in turn budget store.",
+    )
+
+
+
 ##################################################################
 
 
@@ -455,6 +568,14 @@ async def receive_instagram_webhook_message(request: Request) -> WebhookEventRes
             _save_user_not_allowed_trace(trace_repository, external_event)
             return WebhookEventResponse(status="accepted", detail="Instagram message captured, but user is not allowed. No response was sent.")
 
+
+        if _is_instagram_user_blocked(external_event.user_id):
+            _save_turn_budget_blocked_trace(trace_repository, external_event)
+            return WebhookEventResponse(
+                status="accepted",
+                detail="Instagram message captured, but user is blocked by turn budget policy. No response was sent.",
+            )
+
         if _is_instagram_user_rate_limited(external_event.user_id):
             _save_rate_limited_trace(trace_repository, external_event)
             return WebhookEventResponse(
@@ -463,19 +584,25 @@ async def receive_instagram_webhook_message(request: Request) -> WebhookEventRes
             )
 
 
-        try:
-            channel_result, send_result = _process_and_send_external_event(external_event)
-        except GenerationProviderError as exc:
-            _save_failed_processing_trace(trace_repository, external_event, str(exc))
+        if external_event.message_id and external_event.message_id in _instagram_buffered_message_ids:
             return WebhookEventResponse(
-                status="accepted",
-                detail=f"Instagram message accepted, but processing failed before outbound send: {exc}",
+                status="ignored",
+                detail="Duplicate buffered provider message ignored.",
             )
 
-        _save_processed_trace(trace_repository, external_event, channel_result, send_result)
+        enqueue_status = _enqueue_instagram_event(external_event)
 
-        if send_result.status == "sent":
-            _remember_instagram_reply(external_event.user_id)
+        if enqueue_status == "duplicate_buffered":
+            return WebhookEventResponse(
+                status="ignored",
+                detail="Duplicate buffered provider message ignored.",
+            )
+
+        return WebhookEventResponse(
+            status="accepted",
+            detail="Instagram message buffered for bundling.",
+        )
+
 
 
 
@@ -575,6 +702,160 @@ def _build_external_events(
             external_events.append(external_event)
 
     return provider_parser_result, external_events
+
+
+def _get_instagram_bundle_key(external_event: ExternalMessageEvent) -> str:
+    return f"{external_event.platform}:{external_event.conversation_id}:{external_event.user_id}"
+
+
+def _enqueue_instagram_event(external_event: ExternalMessageEvent) -> str:
+    bundle_key = _get_instagram_bundle_key(external_event)
+
+    if external_event.message_id and external_event.message_id in _instagram_buffered_message_ids:
+
+        return "duplicate_buffered"
+    
+    bundle = _instagram_pending_bundles.get(bundle_key)
+    if bundle is None: 
+        bundle = PendingInstagramBundle(
+            bundle_key=bundle_key,
+            platform=external_event.platform,
+            conversation_id=external_event.conversation_id,
+            user_id=external_event.user_id
+        )
+        _instagram_pending_bundles[bundle_key] = bundle
+
+    bundle.events.append(external_event)
+
+    if external_event.message_id:
+        _instagram_buffered_message_ids.add(external_event.message_id)
+
+    if bundle_key not in _instagram_bundle_tasks:
+        loop = asyncio.get_running_loop()
+        _instagram_bundle_tasks[bundle_key] = loop.create_task(
+        _flush_instagram_bundle_after_delay(bundle_key)
+        )
+
+        return "queued_new_bundle"
+
+    return "queued_existing_bundle"
+
+
+def _build_combined_instagram_event(bundle: PendingInstagramBundle) -> ExternalMessageEvent:
+    combined_text = "\n".join(
+        event.message_text.strip()
+        for event in bundle.events
+        if event.message_text and event.message_text.strip()
+    )
+
+    last_event = bundle.events[-1]
+    bundled_message_ids = [
+        event.message_id
+        for event in bundle.events
+        if event.message_id
+    ]
+
+    return ExternalMessageEvent(
+        platform=bundle.platform,
+        conversation_id=bundle.conversation_id,
+        user_id=bundle.user_id,
+        message_text=combined_text,
+        message_id=last_event.message_id,
+        channel_metadata={
+            "source": "instagram_bundle",
+            "bundled_count": len(bundle.events),
+            "bundled_message_ids": bundled_message_ids,
+        },
+    )
+
+
+async def _flush_instagram_bundle_after_delay(bundle_key: str) -> None:
+    bundle: PendingInstagramBundle | None = None
+
+    try:
+        await asyncio.sleep(settings.instagram_bundle_window_seconds)
+
+        bundle = _instagram_pending_bundles.pop(bundle_key, None)
+        if bundle is None or not bundle.events:
+            return
+
+        combined_event = _build_combined_instagram_event(bundle)
+        trace_repository = ExternalTraceRepository(settings.external_traces_path)
+
+        force_final_turn_budget_message = _should_send_turn_budget_final_message(bundle.user_id)
+
+        try:
+            channel_result = await asyncio.to_thread(
+                _build_channel_result_for_external_event,
+                combined_event,
+            )
+
+            if force_final_turn_budget_message:
+                channel_result.outbound_message.message_text = _build_instagram_turn_budget_final_message()
+
+            instagram_sender = InstagramOutboundSender(settings)
+            send_result = await asyncio.to_thread(
+                instagram_sender.send,
+                channel_result.outbound_message,
+            )
+
+        except GenerationProviderError as exc:
+            for original_event in bundle.events:
+                _save_failed_processing_trace(trace_repository, original_event, str(exc))
+            return
+        except Exception as exc:
+            for original_event in bundle.events:
+                _save_failed_processing_trace(
+                    trace_repository,
+                    original_event,
+                    f"Unexpected bundled processing error: {exc}",
+                )
+            return
+
+        for original_event in bundle.events:
+            _save_processed_trace(
+                trace_repository=trace_repository,
+                external_event=original_event,
+                channel_result=channel_result,
+                send_result=send_result,
+            )
+
+        if send_result.status == "sent":
+            _remember_instagram_reply(bundle.user_id)
+            _increment_instagram_turn_budget(bundle.user_id)
+
+    finally:
+        _instagram_bundle_tasks.pop(bundle_key, None)
+
+        if bundle is not None:
+            for event in bundle.events:
+                if event.message_id:
+                    _instagram_buffered_message_ids.discard(event.message_id)
+
+
+
+def _build_instagram_turn_budget_final_message() -> str:
+    return (
+        "si quieres que sigamos hablando hablame por aqui https://mock-laia.com, "
+        "que el instagram lo tengo petado..."
+    )
+
+
+def _should_send_turn_budget_final_message(external_user_id: str) -> bool:
+    limit = settings.instagram_turn_budget_limit
+
+    if limit <= 0:
+        return False
+
+    current_turn_count = instagram_turn_budget_repository.get_turn_count(external_user_id)
+    next_turn_count = current_turn_count + 1
+
+    return next_turn_count >= limit
+
+def _build_channel_result_for_external_event(external_event: ExternalMessageEvent) -> HttpChannelResult:
+    channel_adapter = build_http_channel_adapter(settings)
+    return channel_adapter.process_event(external_event)
+
 
 
 def _process_and_send_external_event(external_event: ExternalMessageEvent) -> tuple[HttpChannelResult, OutboundSendResult]:
@@ -706,14 +987,39 @@ def _save_user_not_allowed_trace(
             outgoing_message_text=None,
             inbound_status="captured",
             outbound_status="not_sent",
-            detail="Inbound Instagram message captured, but user is not allowed.",
+            detail="Inbound Instagram message captured, but user was not admitted.",
             provider_message_id=external_event.message_id,
             outbound_message_id=None,
             operational_status="user_not_allowed",
             operational_error_type=None,
-            operational_detail="INSTAGRAM_ALLOWED_USER_IDS is configured and this user is not included.",
+            operational_detail="User was not admitted by the current Instagram admission policy",
         )
     )
+
+
+def _save_turn_budget_blocked_trace(
+    trace_repository: ExternalTraceRepository,
+    external_event: ExternalMessageEvent,
+) -> None:
+    trace_repository.save_records(
+        ExternalTraceRecord(
+            platform="instagram",
+            external_conversation_id=external_event.conversation_id,
+            external_user_id=external_event.user_id,
+            internal_session_id=None,
+            incoming_message_text=external_event.message_text,
+            outgoing_message_text=None,
+            inbound_status="captured",
+            outbound_status="not_sent",
+            detail="Inbound Instagram message captured, but user is blocked by turn budget policy.",
+            provider_message_id=external_event.message_id,
+            outbound_message_id=None,
+            operational_status="turn_budget_blocked",
+            operational_error_type=None,
+            operational_detail="User exceeded INSTAGRAM_TURN_BUDGET_LIMIT and is currently blocked.",
+        )
+    )
+
 
 def _save_rate_limited_trace(
     trace_repository: ExternalTraceRepository,
@@ -844,10 +1150,34 @@ def _to_operational_event_response(record: ExternalTraceRecord) -> OperationalEv
 def _is_instagram_user_allowed(external_user_id: str) -> bool:
     allowed_user_ids = settings.instagram_allowed_user_ids
 
-    if not allowed_user_ids:
+    # If a manual allowlist is configured, it has priority.
+    if allowed_user_ids:
+        return external_user_id in allowed_user_ids
+
+    auto_admit_limit = settings.instagram_auto_admit_limit
+
+    # If the auto-admit limit is disabled or non-positive, allow everyone.
+    if auto_admit_limit <= 0:
         return True
-    
-    return external_user_id in allowed_user_ids
+
+    if instagram_admission_repository.contains(external_user_id):
+        return True
+
+    if instagram_admission_repository.count() >= auto_admit_limit:
+        return False
+
+    instagram_admission_repository.add_user_id(external_user_id)
+    return True
+
+def _is_instagram_user_blocked(external_user_id: str) -> bool:
+    return instagram_turn_budget_repository.is_blocked(external_user_id)
+
+def _increment_instagram_turn_budget(external_user_id: str) -> dict[str, int | bool]:
+    return instagram_turn_budget_repository.increment_turn(
+        external_user_id,
+        settings.instagram_turn_budget_limit,
+    )
+
 
 
 def _is_instagram_user_rate_limited(external_user_id: str) -> bool:

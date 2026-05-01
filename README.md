@@ -2220,3 +2220,89 @@ tests/test_conversation_service.py -> 14 passed
 ```
 
 The main gain of this phase is product control. Laia on Instagram is no longer just a character prompt; she now behaves as a working first-layer acquisition and filtering mechanism for V1.
+
+
+## Status (XXXIII)
+
+Phase 28 completed: Instagram technical guardrails.
+
+This phase does not try to make Instagram smarter. Its goal is to make Instagram safer, cleaner, and more operable for V1 by adding technical control around message flow, user admission, and high-consumption users.
+
+The project now provides:
+
+- Instagram message bundling:
+  - multiple short consecutive messages from the same user can be grouped before generating a reply
+  - bundling uses a configurable time window through `INSTAGRAM_BUNDLE_WINDOW_SECONDS`
+  - bundled messages are processed as one logical input instead of several fragmented turns
+- a pending bundle model:
+  - `app/models/instagram_bundle.py`
+- automatic Instagram admission control:
+  - manual allowlist support still exists through `INSTAGRAM_ALLOWED_USER_IDS`
+  - when no manual allowlist is configured, the system can auto-admit users up to a configurable limit
+  - admitted users are persisted in `data/instagram_admitted_users.json`
+- Instagram turn-budget blocklist:
+  - users accumulate delivered-turn counts
+  - when they reach `INSTAGRAM_TURN_BUDGET_LIMIT`, they are blocked from further replies
+  - blocked-user state is persisted in `data/instagram_blocked_users.json`
+  - the last allowed turn can send a final redirect-style closing message before the next inbound message is rejected
+- internal inspection and control endpoints for Instagram guardrails:
+  - `GET /internal/instagram/guardrails/summary`
+  - `POST /internal/instagram/admission/{external_user_id}`
+  - `DELETE /internal/instagram/admission/{external_user_id}`
+  - `DELETE /internal/instagram/blocklist/{external_user_id}`
+- an internal bundled test route:
+  - `POST /internal/messages/bundled`
+  - useful for local technical verification of bundling behavior without requiring live Instagram traffic
+
+## Implemented architecture
+
+Instagram inbound flow after this phase
+   -> provider payload received
+   -> duplicate guard
+   -> bot enabled check
+   -> admission policy check
+   -> turn-budget blocklist check
+   -> rate-limit check
+   -> bundle enqueue
+   -> delayed bundle flush
+   -> one combined user input
+   -> internal core processing
+   -> one outbound reply
+
+Guardrail state after this phase
+   -> admission repository
+      -> `data/instagram_admitted_users.json`
+   -> turn-budget repository
+      -> `data/instagram_blocked_users.json`
+   -> internal inspection endpoints
+      -> summary
+      -> manual admit
+      -> manual remove
+      -> manual unblock/reset
+
+Operational effect after this phase
+   -> fewer fragmented DM replies
+   -> more cautious beta admission
+   -> less uncontrolled database growth from overlong user threads
+   -> stronger operator control without editing JSON files manually
+
+Current boundary:
+
+```text
+This phase establishes functional V1 guardrails for Instagram,
+but it still uses simple in-memory bundling and file-backed guardrail state.
+It does not yet provide multi-worker-safe buffering,
+fully formal admin tooling,
+or more advanced user-intent classification.
+```
+
+Relevant validation at this stage is mainly behavioral and operational:
+
+```text
+- bundled internal test flow works
+- admission state is persisted
+- turn-budget state is persisted
+- Instagram guardrail endpoints are available for inspection and control
+```
+
+The main gain of this phase is operational discipline. Instagram is no longer just a channel that replies; it now has real guardrails for message grouping, user admission, turn budgeting, and internal operator control.

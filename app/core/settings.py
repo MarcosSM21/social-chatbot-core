@@ -14,7 +14,6 @@ class Settings:
     chat_history_path: str
     external_traces_path: str
     provider_raw_payloads_path: str
-
     log_level:str
     llm_provider:str
     internal_api_key: str
@@ -37,7 +36,14 @@ class Settings:
     instagram_api_version: str
     instagram_ig_user_id: str
     instagram_reply_cooldown_seconds: int
+    instagram_bundle_window_seconds: int
     instagram_allowed_user_ids : list[str]
+    instagram_turn_budget_limit: int
+    instagram_blocked_users_path: str
+
+    instagram_auto_admit_limit: int
+    instagram_admitted_users_path: str
+
     instagram_access_token: str
     instagram_app_secret: str
     
@@ -88,7 +94,19 @@ class Settings:
                 for user_id in os.getenv("INSTAGRAM_ALLOWED_USER_IDS", "").split(",")
                 if user_id.strip()
             ],
+            instagram_auto_admit_limit=int(os.getenv("INSTAGRAM_AUTO_ADMIT_LIMIT", "10")),
+            instagram_admitted_users_path=os.getenv(
+                "INSTAGRAM_ADMITTED_USERS_PATH",
+                "data/instagram_admitted_users.json",
+            ),
+            instagram_turn_budget_limit=int(os.getenv("INSTAGRAM_TURN_BUDGET_LIMIT", "50")),
+            instagram_blocked_users_path=os.getenv(
+                "INSTAGRAM_BLOCKED_USERS_PATH",
+                "data/instagram_blocked_users.json",
+            ),
+
             instagram_reply_cooldown_seconds=int(os.getenv("INSTAGRAM_REPLY_COOLDOWN_SECONDS", "0")),
+            instagram_bundle_window_seconds=int(os.getenv("INSTAGRAM_BUNDLE_WINDOW_SECONDS", "30")),
             instagram_access_token=os.getenv("INSTAGRAM_ACCESS_TOKEN", os.getenv("INSTAGRAM_TOKEN", "")),
             instagram_app_secret=os.getenv("INSTAGRAM_APP_SECRET", ""),
             character_file=os.getenv("CHARACTER_FILE", "characters/calm_twenty_something.json"),

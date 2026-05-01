@@ -185,6 +185,30 @@ class ActiveCharacterResponse(BaseModel):
     load_status: str
     load_detail: str | None = None
 
+
+class InstagramBlockedUserResponse(BaseModel):
+    external_user_id: str
+    turn_count: int
+    blocked: bool
+
+
+class InstagramGuardrailsSummaryResponse(BaseModel):
+    auto_admit_limit: int
+    turn_budget_limit: int
+    admitted_count: int
+    blocked_count: int
+    admitted_users: list[str]
+    blocked_users: list[InstagramBlockedUserResponse]
+
+
+class InstagramGuardrailActionResponse(BaseModel):
+    external_user_id: str
+    success: bool
+    detail: str
+
+
+
+
     
 
     

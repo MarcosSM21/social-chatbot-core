@@ -214,6 +214,12 @@ class ConversationService:
             "vagina",
             "pechos",
             "senos",
+            "puta",
+            "cerda",
+            "sucia",
+            "guarra",
+            "zorra",
+            "perra",
         )
         return any(cue in lowered for cue in cues)
 
