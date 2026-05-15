@@ -207,7 +207,7 @@ Antes de usar Ollama en real:
 Comprueba:
 
 ```env
-CHARACTER_FILE=characters/quiet_close_friend.json
+CHARACTER_FILE=characters/support_concierge.json
 ```
 
 o el personaje que quieras usar.

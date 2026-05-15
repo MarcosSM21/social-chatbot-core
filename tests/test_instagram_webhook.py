@@ -70,7 +70,20 @@ def reset_instagram_runtime_controls(monkeypatch) -> None:
     monkeypatch.setattr(api_main.settings, "bot_enabled", True)
     monkeypatch.setattr(api_main.settings, "instagram_allowed_user_ids", [])
     monkeypatch.setattr(api_main.settings, "instagram_reply_cooldown_seconds", 0)
+    monkeypatch.setattr(api_main.settings, "instagram_auto_admit_limit", 10)
     api_main._instagram_last_reply_by_user.clear()
+    for task in api_main._instagram_bundle_tasks.values():
+        task.cancel()
+    api_main._instagram_pending_bundles.clear()
+    api_main._instagram_deferred_bundles.clear()
+    api_main._instagram_ready_bundles.clear()
+    api_main._instagram_bundle_tasks.clear()
+    api_main._instagram_buffered_message_ids.clear()
+    api_main._instagram_inflight_bundle_keys.clear()
+    api_main._instagram_pending_send_bundle_keys.clear()
+    api_main._instagram_ready_bundle_queue.clear()
+    api_main._instagram_ready_bundle_keys.clear()
+    api_main._instagram_active_generation_count = 0
 
 
 
@@ -111,30 +124,10 @@ async def test_instagram_webhook_accepts_valid_payload_without_network(monkeypat
     monkeypatch.setattr(api_main.settings, "instagram_reply_cooldown_seconds", 10)
     monkeypatch.setattr(api_main.time, "monotonic", lambda: 500.0)
 
-    def fake_process_and_send(external_event):
-        turn = ChatTurn(
-            session_id="session-1",
-            user_message=ChatMessage(role="user", content=external_event.message_text),
-            assistant_message=ChatMessage(role="assistant", content="respuesta"),
-            session_metadata={
-                "memory_loaded": False,
-                "memory_updated": True,
-                "style_preset": "short_direct_calm",
-                "safety_validation_status": "passed",
-            },
-        )
-        outbound = OutboundChannelMessage(
-            platform=external_event.platform,
-            conversation_id=external_event.conversation_id,
-            user_id=external_event.user_id,
-            message_text="respuesta",
-        )
-        return (
-            HttpChannelResult(turn=turn, outbound_message=outbound),
-            OutboundSendResult(status="sent", detail="mock sent", external_message_id="out-1"),
-        )
+    def fail_if_called(external_event):
+        raise AssertionError("Webhook receipt should buffer first and not process immediately")
 
-    monkeypatch.setattr(api_main, "_process_and_send_external_event", fake_process_and_send)
+    monkeypatch.setattr(api_main, "_process_and_send_external_event", fail_if_called)
     
 
 
@@ -146,11 +139,14 @@ async def test_instagram_webhook_accepts_valid_payload_without_network(monkeypat
     response = await api_main.receive_instagram_webhook_message(request)
 
     assert response.status == "accepted"
-    assert len(FakeTraceRepository.records) == 1
-    assert FakeTraceRepository.records[0].outbound_status == "sent"
-    assert FakeTraceRepository.records[0].operational_status == "ok"
-    assert FakeTraceRepository.records[0].operational_error_type is None
-    assert api_main._instagram_last_reply_by_user["user-1"] == 500.0
+    assert response.detail == "Instagram message buffered for bundling."
+    assert FakeTraceRepository.records == []
+    assert len(api_main._instagram_pending_bundles) == 1
+    pending_bundle = next(iter(api_main._instagram_pending_bundles.values()))
+    assert pending_bundle.user_id == "user-1"
+    assert len(pending_bundle.events) == 1
+    assert pending_bundle.events[0].message_id == "mid-1"
+    assert "mid-1" in api_main._instagram_buffered_message_ids
 
 
 
@@ -190,43 +186,17 @@ async def test_instagram_webhook_ignores_non_text_payload(monkeypatch) -> None:
 
 
 @pytest.mark.anyio
-async def test_instagram_webhook_traces_unexpected_sender_failure(monkeypatch) -> None:
+async def test_instagram_webhook_buffers_before_sender_failure_path(monkeypatch) -> None:
     FakeTraceRepository.duplicate = False
     FakeTraceRepository.records = []
     monkeypatch.setattr(api_main.settings, "instagram_app_secret", "secret")
     monkeypatch.setattr(api_main, "_store_instagram_raw_payload", lambda raw_payload: None)
     monkeypatch.setattr(api_main, "ExternalTraceRepository", FakeTraceRepository)
 
-    class FakeChannelAdapter:
-        def process_event(self, external_event):
-            turn = ChatTurn(
-                session_id="session-1",
-                user_message=ChatMessage(role="user", content=external_event.message_text),
-                assistant_message=ChatMessage(role="assistant", content="respuesta"),
-                session_metadata={
-                    "memory_loaded": False,
-                    "memory_updated": False,
-                    "style_preset": "short_direct_calm",
-                    "safety_validation_status": "passed",
-                },
-            )
-            outbound = OutboundChannelMessage(
-                platform=external_event.platform,
-                conversation_id=external_event.conversation_id,
-                user_id=external_event.user_id,
-                message_text="respuesta",
-            )
-            return HttpChannelResult(turn=turn, outbound_message=outbound)
+    def fail_if_called(external_event):
+        raise RuntimeError("sender exploded")
 
-    class FailingInstagramSender:
-        def __init__(self, settings):
-            self.settings = settings
-
-        def send(self, outbound_message):
-            raise RuntimeError("sender exploded")
-
-    monkeypatch.setattr(api_main, "build_http_channel_adapter", lambda settings: FakeChannelAdapter())
-    monkeypatch.setattr(api_main, "InstagramOutboundSender", FailingInstagramSender)
+    monkeypatch.setattr(api_main, "_process_and_send_external_event", fail_if_called)
 
     raw_body = json.dumps(build_payload()).encode("utf-8")
     request = FakeRequest(
@@ -237,16 +207,8 @@ async def test_instagram_webhook_traces_unexpected_sender_failure(monkeypatch) -
     response = await api_main.receive_instagram_webhook_message(request)
 
     assert response.status == "accepted"
-    assert len(FakeTraceRepository.records) == 1
-
-    record = FakeTraceRepository.records[0]
-    assert record.inbound_status == "processed"
-    assert record.outbound_status == "failed"
-    assert "sender exploded" in record.detail
-    assert record.outbound_message_id is None
-    assert record.operational_status == "outbound_failed"
-    assert record.operational_error_type == "instagram_outbound_failed"
-    assert "sender exploded" in record.operational_detail
+    assert response.detail == "Instagram message buffered for bundling."
+    assert FakeTraceRepository.records == []
 
 
 @pytest.mark.anyio
@@ -275,7 +237,7 @@ async def test_instagram_webhook_ignores_duplicate_provider_message(monkeypatch)
 
 
 @pytest.mark.anyio
-async def test_instagram_webhook_traces_generation_failure_without_retrying(monkeypatch) -> None:
+async def test_instagram_webhook_buffers_before_generation_failure_path(monkeypatch) -> None:
     FakeTraceRepository.duplicate = False
     FakeTraceRepository.records = []
     monkeypatch.setattr(api_main.settings, "instagram_app_secret", "secret")
@@ -296,17 +258,8 @@ async def test_instagram_webhook_traces_generation_failure_without_retrying(monk
     response = await api_main.receive_instagram_webhook_message(request)
 
     assert response.status == "accepted"
-    assert "processing failed" in response.detail
-    assert len(FakeTraceRepository.records) == 1
-
-    record = FakeTraceRepository.records[0]
-    assert record.inbound_status == "processing_failed"
-    assert record.outbound_status == "not_sent"
-    assert record.provider_message_id == "mid-1"
-    assert record.outgoing_message_text is None
-    assert record.operational_status == "processing_failed"
-    assert record.operational_error_type == "generation_provider_error"
-    assert "provider down" in record.operational_detail
+    assert response.detail == "Instagram message buffered for bundling."
+    assert FakeTraceRepository.records == []
 
 
 
@@ -362,30 +315,10 @@ async def test_instagram_webhook_replies_when_user_is_allowed(monkeypatch) -> No
     monkeypatch.setattr(api_main, "_store_instagram_raw_payload", lambda raw_payload: None)
     monkeypatch.setattr(api_main, "ExternalTraceRepository", FakeTraceRepository)
 
-    def fake_process_and_send(external_event):
-        turn = ChatTurn(
-            session_id="session-1",
-            user_message=ChatMessage(role="user", content=external_event.message_text),
-            assistant_message=ChatMessage(role="assistant", content="respuesta"),
-            session_metadata={
-                "memory_loaded": False,
-                "memory_updated": False,
-                "style_preset": "short_direct_calm",
-                "safety_validation_status": "passed",
-            },
-        )
-        outbound = OutboundChannelMessage(
-            platform=external_event.platform,
-            conversation_id=external_event.conversation_id,
-            user_id=external_event.user_id,
-            message_text="respuesta",
-        )
-        return (
-            HttpChannelResult(turn=turn, outbound_message=outbound),
-            OutboundSendResult(status="sent", detail="mock sent", external_message_id="out-1"),
-        )
+    def fail_if_called(external_event):
+        raise AssertionError("Allowed user should still be buffered first")
 
-    monkeypatch.setattr(api_main, "_process_and_send_external_event", fake_process_and_send)
+    monkeypatch.setattr(api_main, "_process_and_send_external_event", fail_if_called)
 
     raw_body = json.dumps(build_payload(message_text="hola", message_id="mid-allowed")).encode("utf-8")
     request = FakeRequest(
@@ -396,9 +329,9 @@ async def test_instagram_webhook_replies_when_user_is_allowed(monkeypatch) -> No
     response = await api_main.receive_instagram_webhook_message(request)
 
     assert response.status == "accepted"
-    assert len(FakeTraceRepository.records) == 1
-    assert FakeTraceRepository.records[0].outbound_status == "sent"
-    assert FakeTraceRepository.records[0].operational_status == "ok"
+    assert response.detail == "Instagram message buffered for bundling."
+    assert FakeTraceRepository.records == []
+    assert len(api_main._instagram_pending_bundles) == 1
 
 
 @pytest.mark.anyio
@@ -536,6 +469,5 @@ async def test_instagram_webhook_captures_without_reply_when_user_is_rate_limite
     assert record.outgoing_message_text is None
     assert record.operational_status == "rate_limited"
     assert record.operational_error_type is None
-
 
 

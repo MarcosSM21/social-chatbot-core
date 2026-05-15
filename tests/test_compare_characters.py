@@ -5,15 +5,15 @@ def test_compare_characters_uses_requested_character_file() -> None:
     reset_runtime_storage()
 
     result = run_character_case(
-        character_file="characters/laia_ambitious_model.json",
+        character_file="characters/support_concierge.json",
         message="holaa",
         provider="mock",
         session_id="test-session",
         external_user_id="test-user",
     )
 
-    assert result["character_id"] == "laia_ambitious_model"
-    assert result["character_name"] == "Laia"
+    assert result["character_id"] == "support_concierge"
+    assert result["character_name"] == "Maya"
     assert result["user_message"] == "holaa"
     assert result["assistant_message"]
 
@@ -21,22 +21,22 @@ def test_compare_characters_uses_requested_character_file() -> None:
 def test_compare_characters_can_switch_between_characters() -> None:
     reset_runtime_storage()
 
-    leo_result = run_character_case(
-        character_file="characters/leo_realistic_friend.json",
+    support_result = run_character_case(
+        character_file="characters/support_concierge.json",
         message="holaa",
         provider="mock",
-        session_id="test-session-leo",
-        external_user_id="test-user-leo",
+        session_id="test-session-support",
+        external_user_id="test-user-support",
     )
-    laia_result = run_character_case(
-        character_file="characters/laia_ambitious_model.json",
+    sales_result = run_character_case(
+        character_file="characters/sales_qualifier.json",
         message="holaa",
         provider="mock",
-        session_id="test-session-laia",
-        external_user_id="test-user-laia",
+        session_id="test-session-sales",
+        external_user_id="test-user-sales",
     )
 
-    assert leo_result["character_id"] == "leo_realistic_friend"
-    assert laia_result["character_id"] == "laia_ambitious_model"
-    assert leo_result["character_name"] == "Leo"
-    assert laia_result["character_name"] == "Laia"
+    assert support_result["character_id"] == "support_concierge"
+    assert sales_result["character_id"] == "sales_qualifier"
+    assert support_result["character_name"] == "Maya"
+    assert sales_result["character_name"] == "Nora"

@@ -6,6 +6,7 @@ from app.storage.user_memory_repository import UserMemoryRepository
 from app.models.conversation_character import ConversationCharacter
 from app.storage.character_repository import CharacterRepository
 from app.models.user_memory import UserMemory
+from app.services.language_routing import detect_conversation_language
 
 
 
@@ -26,6 +27,12 @@ class ConversationContextBuilder:
             external_user_id=external_user_id,
         )
 
+        preferred_language = detect_conversation_language(
+            current_message=message.content,
+            recent_user_messages=[turn.user_message.content for turn in recent_history],
+        )
+
+
         retrieved_memory, retrieved_memory_reasons = self._select_relevant_memory(
             user_memory=user_memory,
             current_message=message.content,
@@ -44,7 +51,7 @@ class ConversationContextBuilder:
         return ConversationContext(
             current_message=message,
             recent_history=recent_history,
-            system_instructions=self._build_system_instructions(),
+            system_instructions=self._build_system_instructions(preferred_language),
             safety_policy=safety_policy,
             safety_instructions=self._build_safety_instructions(safety_policy),
             character=character,
@@ -68,12 +75,30 @@ class ConversationContextBuilder:
 
         )
 
-    def _build_system_instructions(self) -> str:
+    def _build_system_instructions(self, preferred_language: str) -> str:
+        if preferred_language == "en":
+            language_instruction = (
+                "Most important language rule: the user is speaking in English, so you must reply entirely in English. "
+                "Keep the whole reply in English, including short reactions, boundaries, flirtation, and casual fillers. "
+                "Do not switch to Spanish unless the user clearly switches to Spanish."
+            )
+        else:
+            language_instruction = (
+                "Most important language rule: the user is speaking in Spanish, so you must reply entirely in Spanish. "
+                "Keep the whole reply in Spanish, including short reactions, boundaries, flirtation, and casual fillers. "
+                "Do not switch to English unless the user clearly switches to English."
+            )
+
         return (
             "You are replying in a private chat. "
             "Your conversational identity, voice, and boundaries come from the active character instructions. "
-            "Use memory and recent conversation only when relevant"
+            "Use memory and recent conversation only when relevant. "
+            f"{language_instruction}"
         )
+
+
+
+    
     
     def _build_safety_policy(self) -> ConversationSafetyPolicy:
         return ConversationSafetyPolicy.default()
@@ -142,6 +167,24 @@ class ConversationContextBuilder:
             "Do not mention the character profile.",
             "Do not explain your own personality.",
             "Answer the user's actual message.",
+            "Match the user's language.",
+            "If the user writes in English, reply in English.",
+            "If the user writes in Spanish, reply in Spanish.",
+            "Do not mix Spanish and English unless the user clearly mixes both, and even then prefer the dominant language of the latest user message.",
+            "Never describe your own gestures, pauses, facial expressions, or actions.",
+            "Never use stage directions or parenthetical action text.",
+            "Do not write things like sonrisa leve, pausa, suspira, smiles, or pauses for a moment.",
+            "Keep Instagram replies light and socially natural.",
+            "Avoid full stops in short replies whenever possible.",
+            "Avoid emojis unless they are truly necessary.",
+            "Do not sound overly polished, literary, or formally written.",
+            "Prefer simple DM phrasing over elegant phrasing.",
+            "If the user asks something weird, invasive, or meta, answer briefly and naturally.",
+            "If the user asks whether you are an AI, do not deny it.",
+            "Admit it briefly in a playful, teasing, lightly amused way.",
+            "Do not become technical or explain system details when answering that.",
+            "Do not become mystical, conceptual, or poetic when deflecting odd questions.",
+            "For probing questions, prefer simple and grounded replies over elegant ones.",
         ]
     )
 

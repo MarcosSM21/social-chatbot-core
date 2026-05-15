@@ -10,26 +10,26 @@ def test_list_characters_returns_available_character_summaries() -> None:
     characters = repository.list_characters()
     character_ids = [character.character_id for character in characters]
 
-    assert "leo_realistic_friend" in character_ids
-    assert "laia_ambitious_model" in character_ids
+    assert "support_concierge" in character_ids
+    assert "sales_qualifier" in character_ids
 
 
 def test_load_by_file_path_returns_character() -> None:
     repository = CharacterRepository("characters")
 
-    character = repository.load_by_file_path("characters/laia_ambitious_model.json")
+    character = repository.load_by_file_path("characters/support_concierge.json")
 
-    assert character.character_id == "laia_ambitious_model"
-    assert character.display_name == "Laia"
+    assert character.character_id == "support_concierge"
+    assert character.display_name == "Maya"
 
 
 def test_load_by_id_returns_matching_character() -> None:
     repository = CharacterRepository("characters")
 
-    character = repository.load_by_id("leo_realistic_friend")
+    character = repository.load_by_id("sales_qualifier")
 
-    assert character.character_id == "leo_realistic_friend"
-    assert character.display_name == "Leo"
+    assert character.character_id == "sales_qualifier"
+    assert character.display_name == "Nora"
 
 
 def test_load_by_missing_file_returns_default_character() -> None:
@@ -90,11 +90,11 @@ def test_valid_character_json_can_be_loaded_from_custom_directory(tmp_path) -> N
 def test_load_by_file_path_with_status_reports_loaded_character() -> None:
     repository = CharacterRepository("characters")
 
-    result = repository.load_by_file_path_with_status("characters/laia_ambitious_model.json")
+    result = repository.load_by_file_path_with_status("characters/support_concierge.json")
 
     assert result.status == "loaded"
     assert result.detail is None
-    assert result.character.character_id == "laia_ambitious_model"
+    assert result.character.character_id == "support_concierge"
 
 
 def test_load_by_file_path_with_status_reports_missing_file() -> None:

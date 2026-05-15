@@ -151,7 +151,7 @@ def test_prompt_uses_compact_character_brief(tmp_path, monkeypatch) -> None:
     chat_history_file = tmp_path / "chat_history.json"
     user_memory_file = tmp_path / "user_memories.json"
 
-    monkeypatch.setenv("CHARACTER_FILE", "characters/laia_ambitious_model.json")
+    monkeypatch.setenv("CHARACTER_FILE", "characters/support_concierge.json")
 
     preview = build_prompt_preview(
         message="holaa",
@@ -166,7 +166,7 @@ def test_prompt_uses_compact_character_brief(tmp_path, monkeypatch) -> None:
     contents = "\n".join(message["content"] for message in preview["messages"])
 
     assert "Active character brief." in contents
-    assert "Name: Laia." in contents
+    assert "Name: Maya." in contents
     assert "Inner world:" in contents
     assert "Motivations:" in contents
     assert "Relationship dynamic:" in contents
@@ -178,7 +178,7 @@ def test_prompt_does_not_include_good_response_examples_as_templates(tmp_path, m
     chat_history_file = tmp_path / "chat_history.json"
     user_memory_file = tmp_path / "user_memories.json"
 
-    monkeypatch.setenv("CHARACTER_FILE", "characters/laia_ambitious_model.json")
+    monkeypatch.setenv("CHARACTER_FILE", "characters/support_concierge.json")
 
     preview = build_prompt_preview(
         message="holaa",
@@ -194,7 +194,7 @@ def test_prompt_does_not_include_good_response_examples_as_templates(tmp_path, m
 
     assert "good_response_examples" not in contents
     assert "bad_response_examples" not in contents
-    assert "holiii, todo bien por aquí" not in contents
+    assert "holaaa, gracias por escribir" not in contents
 
 
 def test_build_prompt_preview_includes_retrieved_memory_block(tmp_path) -> None:
@@ -325,4 +325,3 @@ def test_build_prompt_preview_includes_compacted_turn_context_block(tmp_path) ->
     contents = "\n".join(message["content"] for message in preview["messages"])
 
     assert "Compacted turn context:" in contents
-

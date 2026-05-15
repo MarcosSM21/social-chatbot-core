@@ -104,6 +104,16 @@ class InstagramWebhookPayloadRequest(BaseModel):
         description="List of provider entry objects",
     )
 
+class InstagramUserResetResponse(BaseModel):
+    external_user_id: str
+    memory_deleted: bool
+    admission_removed: bool
+    turn_budget_reset: bool
+    mappings_deleted: int
+    chat_turns_deleted: int
+    detail: str
+
+
 
 class UserMemoryResponse(BaseModel):
     platform : str
@@ -205,6 +215,109 @@ class InstagramGuardrailActionResponse(BaseModel):
     external_user_id: str
     success: bool
     detail: str
+
+
+class InstagramRuntimeSummaryResponse(BaseModel):
+    pending_bundle_count: int
+    deferred_bundle_count: int
+    ready_bundle_count: int
+    inflight_bundle_count: int
+    pending_send_bundle_count: int
+    ready_queue_count: int
+    active_generation_count: int
+    max_concurrent_generations: int
+    pending_outbound_count: int
+    due_pending_outbound_count: int
+    admitted_user_count: int
+    blocked_user_count: int
+    oldest_pending_outbound_send_at_ts: float | None = None
+    oldest_pending_outbound_seconds_until_send: float | None = None
+
+
+class InstagramRuntimeConversationResponse(BaseModel):
+    bundle_key: str
+    external_user_id: str
+    external_conversation_id: str
+    internal_session_id: str | None = None
+    current_runtime_state: str
+    last_user_message: str | None = None
+    last_assistant_message: str | None = None
+    turn_count: int
+    admitted: bool
+    blocked: bool
+    has_pending_outbound: bool
+    pending_outbound_count: int
+    pending_bundle_message_count: int
+    deferred_bundle_message_count: int
+
+
+class InstagramRuntimeConversationListResponse(BaseModel):
+    count: int
+    conversations: list[InstagramRuntimeConversationResponse]
+
+
+class InstagramRuntimePendingOutboundResponse(BaseModel):
+    pending_id: str
+    message_text: str
+    created_at_ts: float
+    send_at_ts: float
+    seconds_until_send: float
+    status: str
+
+
+class InstagramRuntimeTurnResponse(BaseModel):
+    user_message: str
+    assistant_message: str
+
+
+class InstagramRuntimeTraceResponse(BaseModel):
+    incoming_message_text: str | None = None
+    outgoing_message_text: str | None = None
+    inbound_status: str
+    outbound_status: str | None = None
+    operational_status: str | None = None
+    detail: str
+    provider_message_id: str | None = None
+
+
+class InstagramRuntimeConversationDetailResponse(BaseModel):
+    bundle_key: str
+    external_user_id: str
+    external_conversation_id: str
+    internal_session_id: str | None = None
+    current_runtime_state: str
+    admitted: bool
+    blocked: bool
+    turn_count: int
+    pending_bundle_message_count: int
+    deferred_bundle_message_count: int
+    has_pending_outbound: bool
+    pending_outbound_count: int
+    pending_outbound: list[InstagramRuntimePendingOutboundResponse]
+    recent_turns: list[InstagramRuntimeTurnResponse]
+    recent_traces: list[InstagramRuntimeTraceResponse]
+
+
+class InstagramPendingOutboundRecordResponse(BaseModel):
+    pending_id: str
+    bundle_key: str
+    external_user_id: str
+    external_conversation_id: str
+    internal_session_id: str | None = None
+    message_text: str
+    status: str
+    created_at_ts: float
+    send_at_ts: float
+    seconds_until_send: float
+
+
+class InstagramPendingOutboundListResponse(BaseModel):
+    count: int
+    due_count: int
+    oldest_send_at_ts: float | None = None
+    records: list[InstagramPendingOutboundRecordResponse]
+
+
 
 
 

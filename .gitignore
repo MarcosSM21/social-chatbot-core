@@ -9,6 +9,7 @@ venv/
 
 # Environment variables
 .env
+Levantar api
 
 # Test / cache
 .pytest_cache/
@@ -26,7 +27,8 @@ venv/
 Thumbs.db
 
 # Local runtime data
-data/
+data/*
+!data/.gitkeep
 *.sqlite3
 *.db
 

@@ -37,6 +37,13 @@ class Settings:
     instagram_ig_user_id: str
     instagram_reply_cooldown_seconds: int
     instagram_bundle_window_seconds: int
+    instagram_outbound_delay_min_seconds: int
+    instagram_outbound_delay_max_seconds: int
+    instagram_outbound_scheduler_poll_seconds: int
+    instagram_max_concurrent_generations: int
+    instagram_pending_outbound_path: str
+    instagram_behavior_profile: str
+    instagram_redirect_url: str
     instagram_allowed_user_ids : list[str]
     instagram_turn_budget_limit: int
     instagram_blocked_users_path: str
@@ -107,9 +114,27 @@ class Settings:
 
             instagram_reply_cooldown_seconds=int(os.getenv("INSTAGRAM_REPLY_COOLDOWN_SECONDS", "0")),
             instagram_bundle_window_seconds=int(os.getenv("INSTAGRAM_BUNDLE_WINDOW_SECONDS", "30")),
+            instagram_outbound_delay_min_seconds=int(os.getenv("INSTAGRAM_OUTBOUND_DELAY_MIN_SECONDS", "5")),
+            instagram_outbound_delay_max_seconds=int(os.getenv("INSTAGRAM_OUTBOUND_DELAY_MAX_SECONDS", "1800")),
+            instagram_outbound_scheduler_poll_seconds=int(os.getenv("INSTAGRAM_OUTBOUND_SCHEDULER_POLL_SECONDS", "2")),
+            instagram_max_concurrent_generations=int(
+                os.getenv("INSTAGRAM_MAX_CONCURRENT_GENERATIONS", "1")
+            ),
+            instagram_pending_outbound_path=os.getenv(
+                "INSTAGRAM_PENDING_OUTBOUND_PATH",
+                "data/instagram_pending_outbound.json",
+            ),
+            instagram_behavior_profile=os.getenv(
+                "INSTAGRAM_BEHAVIOR_PROFILE",
+                "neutral",
+            ),
+            instagram_redirect_url=os.getenv(
+                "INSTAGRAM_REDIRECT_URL",
+                "https://example.com/private",
+            ),
             instagram_access_token=os.getenv("INSTAGRAM_ACCESS_TOKEN", os.getenv("INSTAGRAM_TOKEN", "")),
             instagram_app_secret=os.getenv("INSTAGRAM_APP_SECRET", ""),
-            character_file=os.getenv("CHARACTER_FILE", "characters/calm_twenty_something.json"),
+            character_file=os.getenv("CHARACTER_FILE", "characters/support_concierge.json"),
 
         )
     

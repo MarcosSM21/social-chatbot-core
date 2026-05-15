@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import re
 
 
 @dataclass
@@ -45,7 +46,18 @@ class AssistantResponseSafetyValidator:
                 safe_text=self.empty_fallback_text,
                 matched_rule="empty_response",
             )
-        
+
+        original_text = cleaned_text
+        cleaned_text = self._strip_stage_direction_artifacts(cleaned_text)
+
+        if not cleaned_text:
+            return AssistantResponseSafetyResult(
+                status="blocked",
+                detail="Assistant response became empty after removing stage-direction artifacts.",
+                safe_text=self.empty_fallback_text,
+                matched_rule="stage_direction_cleanup_empty",
+            )
+
         matched_rule = self._find_sensitive_marker(cleaned_text)
         if matched_rule is not None:
             return AssistantResponseSafetyResult(
@@ -54,7 +66,7 @@ class AssistantResponseSafetyValidator:
                 safe_text=self.safe_fallback_text,
                 matched_rule=matched_rule,
             )
-        
+
         if len(cleaned_text) > self.max_response_length:
             return AssistantResponseSafetyResult(
                 status="adjusted",
@@ -62,13 +74,41 @@ class AssistantResponseSafetyValidator:
                 safe_text=cleaned_text[: self.max_response_length].rstrip() + "...",
                 matched_rule="max_response_length",
             )
-        
+
+        if cleaned_text != original_text:
+            return AssistantResponseSafetyResult(
+                status="adjusted",
+                detail="Assistant response contained stage-direction artifacts that were removed.",
+                safe_text=cleaned_text,
+                matched_rule="stage_direction_artifact",
+            )
+
         return AssistantResponseSafetyResult(
             status="passed",
             detail="Assistant response passed safety validation.",
             safe_text=cleaned_text,
             matched_rule=None,
         )
+    
+    def _strip_stage_direction_artifacts(self, response_text: str) -> str:
+        cleaned = response_text.strip()
+
+        leading_patterns = (
+            r"^\((?:[^)]{1,120})\)\s*",
+            r"^(?:pausa|pause|sonrisa leve|suspiro|suspira|smiles?|smile|pauses?|se rie|se ríe|sonrie|sonríe)\b[\s:.,-]*",
+        )
+
+        previous = None
+        while cleaned != previous:
+            previous = cleaned
+            for pattern in leading_patterns:
+                cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE).strip()
+
+        cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+
+        return cleaned
+
+
 
     def _find_sensitive_marker(self, response_text: str) -> str | None:
         normalized_text = response_text.lower()

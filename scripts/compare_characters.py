@@ -141,8 +141,8 @@ def main() -> None:
         "--characters",
         nargs="+",
         default=[
-            "characters/leo_realistic_friend.json",
-            "characters/laia_ambitious_model.json",
+            "characters/support_concierge.json",
+            "characters/sales_qualifier.json",
         ],
         help="Character JSON files to compare.",
     )

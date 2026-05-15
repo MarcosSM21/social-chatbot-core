@@ -83,7 +83,7 @@ Ollama provider with a specific character:
 ```bash
 .venv/bin/python evaluation/run_multiturn_evaluation.py \
   --provider ollama \
-  --character-file characters/laia_ambitious_model.json
+  --character-file characters/support_concierge.json
 ```
 
 Cases live in:

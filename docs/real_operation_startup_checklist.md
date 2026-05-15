@@ -18,7 +18,7 @@ OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=gemma3
 MEMORY_STORAGE_BACKEND=sqlite
 SQLITE_DATABASE_PATH=data/social_chatbot.sqlite3
-CHARACTER_FILE=characters/laia_ambitious_model.json
+CHARACTER_FILE=characters/support_concierge.json
 WEBHOOK_VERIFY_TOKEN=...
 INSTAGRAM_API_VERSION=v25.0
 INSTAGRAM_IG_USER_ID=...
@@ -264,7 +264,7 @@ Multi-turn evaluation:
 ```bash
 .venv/bin/python evaluation/run_multiturn_evaluation.py \
   --provider ollama \
-  --character-file characters/laia_ambitious_model.json
+  --character-file characters/support_concierge.json
 ```
 
 Evaluation uses:
